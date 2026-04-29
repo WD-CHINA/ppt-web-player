@@ -1,6 +1,13 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
-import { parsePptx, type Diagnostic, type Presentation } from '@pptx-player/core'
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import {
+  parsePptx,
+  type Diagnostic,
+  type Fill,
+  type LineEndStyle,
+  type LineStyle,
+  type Presentation,
+} from '@pptx-player/core'
 
 import { sampleDecks } from './samples'
 
@@ -8,11 +15,18 @@ const isLoading = ref(false)
 const errorMessage = ref('')
 const diagnostics = ref<Diagnostic[]>([])
 const presentation = ref<Presentation | null>(null)
+const mediaUrls = ref<Record<string, string>>({})
 const activeFileName = ref('')
+const activeSlideIndex = ref(0)
 
 const hasResult = computed(() => presentation.value !== null)
-const firstSlide = computed(() => presentation.value?.slides[0] ?? null)
-const previewElements = computed(() => firstSlide.value?.elements.filter((element) => element.transform) ?? [])
+const slideCount = computed(() => presentation.value?.slides.length ?? 0)
+const activeSlide = computed(() => presentation.value?.slides[activeSlideIndex.value] ?? presentation.value?.slides[0] ?? null)
+const previewElements = computed(() => activeSlide.value?.elements.filter((element) => element.transform) ?? [])
+const canGoFirstSlide = computed(() => activeSlideIndex.value > 0)
+const canGoPreviousSlide = computed(() => activeSlideIndex.value > 0)
+const canGoNextSlide = computed(() => activeSlideIndex.value < slideCount.value - 1)
+const canGoLastSlide = computed(() => activeSlideIndex.value < slideCount.value - 1)
 
 async function parseInput(input: Blob | ArrayBuffer, fileName: string) {
   isLoading.value = true
@@ -20,11 +34,14 @@ async function parseInput(input: Blob | ArrayBuffer, fileName: string) {
   presentation.value = null
   diagnostics.value = []
   activeFileName.value = fileName
+  activeSlideIndex.value = 0
+  revokeMediaUrls()
 
   try {
     const result = await parsePptx(input)
     presentation.value = result.presentation
     diagnostics.value = result.diagnostics
+    mediaUrls.value = createMediaUrls(result.media)
 
     if (!result.presentation) {
       errorMessage.value = '未能解析 presentation.xml，请查看 diagnostics。'
@@ -58,6 +75,155 @@ async function handleFileChange(event: Event) {
   await parseInput(file, file.name)
   input.value = ''
 }
+
+function goToSlide(index: number) {
+  if (slideCount.value === 0) {
+    activeSlideIndex.value = 0
+    return
+  }
+
+  activeSlideIndex.value = Math.min(Math.max(index, 0), slideCount.value - 1)
+}
+
+function goToFirstSlide() {
+  goToSlide(0)
+}
+
+function goToPreviousSlide() {
+  goToSlide(activeSlideIndex.value - 1)
+}
+
+function goToNextSlide() {
+  goToSlide(activeSlideIndex.value + 1)
+}
+
+function goToLastSlide() {
+  goToSlide(slideCount.value - 1)
+}
+
+function handleKeydown(event: KeyboardEvent) {
+  if (!presentation.value || isInteractiveTarget(event.target)) {
+    return
+  }
+
+  if (event.key === 'ArrowLeft' || event.key === 'PageUp') {
+    event.preventDefault()
+    goToPreviousSlide()
+    return
+  }
+
+  if (event.key === 'ArrowRight' || event.key === 'PageDown' || event.key === ' ') {
+    event.preventDefault()
+    goToNextSlide()
+    return
+  }
+
+  if (event.key === 'Home') {
+    event.preventDefault()
+    goToFirstSlide()
+    return
+  }
+
+  if (event.key === 'End') {
+    event.preventDefault()
+    goToLastSlide()
+  }
+}
+
+function isInteractiveTarget(target: EventTarget | null): boolean {
+  return target instanceof HTMLElement && ['BUTTON', 'INPUT', 'TEXTAREA', 'SELECT', 'A'].includes(target.tagName)
+}
+
+function svgFill(fill: Fill | undefined): string {
+  if (!fill) {
+    return '#cbd5e1'
+  }
+
+  return fill.type === 'solid' ? fill.color : 'none'
+}
+
+function solidFillColor(fill: Fill | undefined, fallback: string): string {
+  return fill?.type === 'solid' ? fill.color : fallback
+}
+
+function fillLabel(fill: Fill | undefined): string {
+  if (!fill) {
+    return 'none'
+  }
+
+  return fill.type === 'solid' ? fill.color : 'noFill'
+}
+
+function svgFillOpacity(fill: Fill | undefined): number {
+  return fill?.type === 'solid' ? (fill.opacity ?? 1) : 1
+}
+
+function svgStrokeOpacity(line: LineStyle | undefined): number {
+  return line?.opacity ?? 1
+}
+
+function svgStrokeDasharray(line: LineStyle | undefined): string | undefined {
+  if (!line?.dash) {
+    return undefined
+  }
+
+  const unit = Math.max(1, line.width ?? 1)
+  const dashPatterns: Record<string, number[]> = {
+    dash: [3, 2],
+    dashDot: [3, 2, 1, 2],
+    dot: [1, 2],
+    lgDash: [6, 2],
+    lgDashDot: [6, 2, 1, 2],
+    lgDashDotDot: [6, 2, 1, 2, 1, 2],
+    sysDash: [3, 1],
+    sysDashDot: [3, 1, 1, 1],
+    sysDashDotDot: [3, 1, 1, 1, 1, 1],
+    sysDot: [1, 1],
+  }
+  const pattern = dashPatterns[line.dash]
+
+  return pattern?.map((value) => value * unit).join(' ')
+}
+
+function svgMarkerStart(line: LineStyle | undefined): string | undefined {
+  return svgMarker(line?.headEnd)
+}
+
+function svgMarkerEnd(line: LineStyle | undefined): string | undefined {
+  return svgMarker(line?.tailEnd)
+}
+
+function svgMarker(lineEnd: LineEndStyle | undefined): string | undefined {
+  const markerIds: Record<string, string> = {
+    arrow: 'ppt-marker-triangle',
+    diamond: 'ppt-marker-diamond',
+    oval: 'ppt-marker-oval',
+    stealth: 'ppt-marker-stealth',
+    triangle: 'ppt-marker-triangle',
+  }
+  const markerId = lineEnd ? markerIds[lineEnd.type] : undefined
+
+  return markerId ? `url(#${markerId})` : undefined
+}
+
+function createMediaUrls(media: Record<string, Blob>): Record<string, string> {
+  return Object.fromEntries(Object.entries(media).map(([part, blob]) => [part, URL.createObjectURL(blob)]))
+}
+
+function revokeMediaUrls() {
+  for (const url of Object.values(mediaUrls.value)) {
+    URL.revokeObjectURL(url)
+  }
+
+  mediaUrls.value = {}
+}
+
+onMounted(() => window.addEventListener('keydown', handleKeydown))
+
+onBeforeUnmount(() => {
+  window.removeEventListener('keydown', handleKeydown)
+  revokeMediaUrls()
+})
 </script>
 
 <template>
@@ -126,15 +292,38 @@ async function handleFileChange(event: Event) {
         </dl>
 
         <div class="preview-panel">
-          <h3>第一页预览</h3>
+          <div class="preview-header">
+            <h3>{{ activeSlide ? `Slide #${activeSlide.index + 1} 预览` : 'Slide 预览' }}</h3>
+            <div class="slide-nav" aria-label="Slide navigation">
+              <button type="button" :disabled="!canGoFirstSlide" @click="goToFirstSlide">首页</button>
+              <button type="button" :disabled="!canGoPreviousSlide" @click="goToPreviousSlide">上一页</button>
+              <span>{{ activeSlide ? activeSlide.index + 1 : 0 }} / {{ slideCount }}</span>
+              <button type="button" :disabled="!canGoNextSlide" @click="goToNextSlide">下一页</button>
+              <button type="button" :disabled="!canGoLastSlide" @click="goToLastSlide">末页</button>
+            </div>
+          </div>
           <svg
-            v-if="firstSlide"
+            v-if="activeSlide"
             class="slide-preview"
             role="img"
-            :aria-label="`${firstSlide.part} preview`"
+            :aria-label="`${activeSlide.part} preview`"
             :viewBox="`0 0 ${presentation.width} ${presentation.height}`"
           >
-            <rect width="100%" height="100%" rx="12" :fill="firstSlide.background?.color ?? '#f8fafc'" />
+            <defs>
+              <marker id="ppt-marker-triangle" markerHeight="8" markerWidth="8" orient="auto" refX="7" refY="4">
+                <path d="M 0 0 L 8 4 L 0 8 z" fill="context-stroke" />
+              </marker>
+              <marker id="ppt-marker-stealth" markerHeight="8" markerWidth="9" orient="auto" refX="8" refY="4">
+                <path d="M 0 0 L 9 4 L 0 8 L 3 4 z" fill="context-stroke" />
+              </marker>
+              <marker id="ppt-marker-diamond" markerHeight="8" markerWidth="10" orient="auto" refX="9" refY="4">
+                <path d="M 1 4 L 5 0 L 9 4 L 5 8 z" fill="context-stroke" />
+              </marker>
+              <marker id="ppt-marker-oval" markerHeight="8" markerWidth="8" orient="auto" refX="7" refY="4">
+                <ellipse cx="4" cy="4" fill="context-stroke" rx="4" ry="3" />
+              </marker>
+            </defs>
+            <rect width="100%" height="100%" rx="12" :fill="solidFillColor(activeSlide.background, '#f8fafc')" />
             <g v-for="element in previewElements" :key="element.id">
               <template v-if="element.transform">
                 <text
@@ -146,6 +335,15 @@ async function handleFileChange(event: Event) {
                 >
                   {{ element.text.slice(0, 48) }}
                 </text>
+                <image
+                  v-else-if="element.type === 'image' && element.part && mediaUrls[element.part]"
+                  :x="element.transform.x"
+                  :y="element.transform.y"
+                  :width="element.transform.width"
+                  :height="element.transform.height"
+                  :href="mediaUrls[element.part]"
+                  preserveAspectRatio="xMidYMid meet"
+                />
                 <g v-else-if="element.type === 'image'">
                   <rect
                     :x="element.transform.x"
@@ -161,18 +359,33 @@ async function handleFileChange(event: Event) {
                     {{ element.part ?? 'image' }}
                   </text>
                 </g>
+                <ellipse
+                  v-else-if="element.type === 'shape' && element.geometry?.preset === 'ellipse'"
+                  :cx="element.transform.x + element.transform.width / 2"
+                  :cy="element.transform.y + element.transform.height / 2"
+                  :rx="element.transform.width / 2"
+                  :ry="element.transform.height / 2"
+                  :fill="svgFill(element.fill)"
+                  :fill-opacity="svgFillOpacity(element.fill)"
+                  :stroke="element.line?.color ?? '#334155'"
+                  :stroke-width="element.line?.width ?? 1"
+                  :stroke-opacity="svgStrokeOpacity(element.line)"
+                  :stroke-dasharray="svgStrokeDasharray(element.line)"
+                />
                 <rect
                   v-else-if="element.type === 'shape'"
                   :x="element.transform.x"
                   :y="element.transform.y"
                   :width="element.transform.width"
                   :height="element.transform.height"
-                  rx="6"
-                  :fill="element.fill?.color ?? '#cbd5e1'"
-                  fill-opacity="0.7"
+                  :rx="element.geometry?.preset === 'roundRect' ? Math.min(element.transform.width, element.transform.height) * 0.16 : 0"
+                  :ry="element.geometry?.preset === 'roundRect' ? Math.min(element.transform.width, element.transform.height) * 0.16 : 0"
+                  :fill="svgFill(element.fill)"
+                  :fill-opacity="svgFillOpacity(element.fill)"
                   :stroke="element.line?.color ?? '#334155'"
                   :stroke-width="element.line?.width ?? 1"
-                  stroke-opacity="0.45"
+                  :stroke-opacity="svgStrokeOpacity(element.line)"
+                  :stroke-dasharray="svgStrokeDasharray(element.line)"
                 />
                 <line
                   v-else-if="element.type === 'connector'"
@@ -180,8 +393,12 @@ async function handleFileChange(event: Event) {
                   :y1="element.transform.y + element.transform.height / 2"
                   :x2="element.transform.x + element.transform.width"
                   :y2="element.transform.y + element.transform.height / 2"
-                  :stroke="element.line?.color ?? element.fill?.color ?? '#64748b'"
+                  :stroke="element.line?.color ?? solidFillColor(element.fill, '#64748b')"
                   :stroke-width="element.line?.width ?? 4"
+                  :stroke-opacity="svgStrokeOpacity(element.line)"
+                  :stroke-dasharray="svgStrokeDasharray(element.line)"
+                  :marker-start="svgMarkerStart(element.line)"
+                  :marker-end="svgMarkerEnd(element.line)"
                   stroke-linecap="round"
                 />
                 <rect
@@ -204,10 +421,16 @@ async function handleFileChange(event: Event) {
           <h3>Slides</h3>
           <ol>
             <li v-for="slide in presentation.slides" :key="slide.relationshipId">
-              <div class="slide-heading">
+              <button
+                type="button"
+                class="slide-heading"
+                :class="{ 'slide-heading-active': activeSlide?.index === slide.index }"
+                :aria-current="activeSlide?.index === slide.index ? 'true' : undefined"
+                @click="goToSlide(slide.index)"
+              >
                 <span>#{{ slide.index + 1 }}</span>
                 <code>{{ slide.part }}</code>
-              </div>
+              </button>
 
               <div class="element-stats" aria-label="Slide element summary">
                 <span>文本 {{ slide.elements.filter((element) => element.type === 'text').length }}</span>
@@ -223,11 +446,11 @@ async function handleFileChange(event: Event) {
                   <span v-if="element.type === 'text'">{{ element.text }}</span>
                   <code v-else-if="element.type === 'image'">{{ element.part ?? element.relationshipId ?? 'missing image relationship' }}</code>
                   <code v-else-if="element.type === 'shape'">
-                    fill {{ element.fill?.color ?? 'none' }} · line
+                    fill {{ fillLabel(element.fill) }} · line
                     {{ element.line?.color ?? 'none' }} {{ element.line?.width ?? 0 }}px
                   </code>
                   <code v-else-if="element.type === 'connector'">
-                    line {{ element.line?.color ?? element.fill?.color ?? 'none' }}
+                    line {{ element.line?.color ?? solidFillColor(element.fill, 'none') }}
                     {{ element.line?.width ?? 0 }}px
                   </code>
                   <span v-else>{{ element.nodeName }}</span>
@@ -426,6 +649,42 @@ dd {
   margin-bottom: 24px;
 }
 
+.preview-header,
+.slide-nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.preview-header h3 {
+  margin-bottom: 0;
+}
+
+.slide-nav {
+  justify-content: flex-start;
+}
+
+.slide-nav button {
+  border: 1px solid rgba(56, 189, 248, 0.42);
+  border-radius: 999px;
+  padding: 8px 14px;
+  background: rgba(14, 165, 233, 0.14);
+  color: #e0f2fe;
+  cursor: pointer;
+}
+
+.slide-nav button:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+.slide-nav span {
+  color: #cbd5e1;
+  font-weight: 700;
+}
+
 .slide-preview {
   width: 100%;
   max-height: 520px;
@@ -457,6 +716,22 @@ dd {
   flex-wrap: wrap;
   gap: 10px;
   align-items: center;
+}
+
+.slide-heading {
+  width: 100%;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  padding: 8px 10px;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.slide-heading-active {
+  border-color: rgba(56, 189, 248, 0.56);
+  background: rgba(56, 189, 248, 0.12);
 }
 
 .element-stats span {

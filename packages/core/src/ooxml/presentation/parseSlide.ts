@@ -8,6 +8,7 @@ import type {
   Fill,
   ImageElement,
   ShapeElement,
+  ShapeGeometry,
   SlideElement,
   TextElement,
   UnknownElement,
@@ -122,6 +123,7 @@ function parseShapeElement(node: XmlNode, index: number): TextElement | ShapeEle
   const transform = parseTransform(node)
   const fill = parseFill(node)
   const line = parseLine(node)
+  const geometry = parseGeometry(node)
 
   if (text) {
     return {
@@ -131,6 +133,7 @@ function parseShapeElement(node: XmlNode, index: number): TextElement | ShapeEle
       transform,
       fill,
       line,
+      geometry,
       type: 'text',
       text,
     }
@@ -147,8 +150,16 @@ function parseShapeElement(node: XmlNode, index: number): TextElement | ShapeEle
     transform,
     fill,
     line,
+    geometry,
     type: 'shape',
   }
+}
+
+function parseGeometry(node: XmlNode): ShapeGeometry | undefined {
+  const presetGeometry = xml.path(node, ['p:spPr', 'a:prstGeom'])
+  const preset = xml.attr(presetGeometry, 'prst')
+
+  return preset ? { type: 'preset', preset } : undefined
 }
 
 function parseConnectorElement(node: XmlNode, index: number): ConnectorElement {

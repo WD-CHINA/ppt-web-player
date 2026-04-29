@@ -1,0 +1,25 @@
+- generic [active] [ref=e1]:
+  - main [ref=e3]:
+    - generic [ref=e4]:
+      - paragraph [ref=e5]: PPTX Web Player · Phase 0
+      - heading "企业可控 PPTX Web Player" [level=1] [ref=e6]
+      - paragraph [ref=e7]: 当前阶段打通 PPTX 解包、XML 解析、relationships 解析、presentation 尺寸和 slide 列表读取。
+    - region "解析 PPTX" [ref=e8]:
+      - heading "解析 PPTX" [level=2] [ref=e9]
+      - generic [ref=e10]:
+        - generic [ref=e11] [cursor=pointer]:
+          - generic [ref=e12]: 上传本地 PPTX
+          - button "上传本地 PPTX" [ref=e13]
+        - generic "样本文件" [ref=e14]:
+          - button "演示文稿1" [ref=e15] [cursor=pointer]
+          - button "Watercolor" [ref=e16] [cursor=pointer]
+          - button "Transition fixture" [ref=e17] [cursor=pointer]
+    - generic [ref=e19]: 请选择一个样本或上传 PPTX 文件开始解析。
+    - generic [ref=e20]:
+      - heading "Diagnostics" [level=2] [ref=e21]
+      - paragraph [ref=e22]: 暂无 diagnostics。
+  - generic [ref=e23]:
+    - generic "Toggle devtools panel" [ref=e24] [cursor=pointer]:
+      - img [ref=e25]
+    - generic "Toggle Component Inspector" [ref=e30] [cursor=pointer]:
+      - img [ref=e31]

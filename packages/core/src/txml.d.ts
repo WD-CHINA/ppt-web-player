@@ -1,5 +1,3 @@
-/// <reference types="vite/client" />
-
 declare module 'txml' {
   export interface tNode {
     tagName: string

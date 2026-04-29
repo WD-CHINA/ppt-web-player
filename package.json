@@ -4,21 +4,16 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "vite",
-    "build": "run-p type-check \"build-only {@}\" --",
-    "preview": "vite preview",
-    "test:unit": "vitest",
-    "build-only": "vite build",
-    "type-check": "vue-tsc --build",
+    "dev": "pnpm --filter @pptx-player/app dev",
+    "build": "pnpm -r build",
+    "preview": "pnpm --filter @pptx-player/app preview",
+    "test:unit": "pnpm -r test:unit",
+    "build-only": "pnpm --filter @pptx-player/app build-only",
+    "type-check": "pnpm -r type-check",
     "lint": "run-s lint:*",
     "lint:oxlint": "oxlint . --fix",
     "lint:eslint": "eslint . --fix --cache",
-    "format": "prettier --write --experimental-cli src/"
-  },
-  "dependencies": {
-    "pinia": "^3.0.4",
-    "vue": "^3.5.32",
-    "vue-router": "^5.0.4"
+    "format": "prettier --write --experimental-cli \"packages/**/src/**/*.{vue,ts,tsx}\""
   },
   "devDependencies": {
     "@tsconfig/node24": "^24.0.4",

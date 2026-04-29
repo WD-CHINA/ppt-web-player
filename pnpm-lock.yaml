@@ -7,16 +7,6 @@ settings:
 importers:
 
   .:
-    dependencies:
-      pinia:
-        specifier: ^3.0.4
-        version: 3.0.4(typescript@6.0.3)(vue@3.5.33(typescript@6.0.3))
-      vue:
-        specifier: ^3.5.32
-        version: 3.5.33(typescript@6.0.3)
-      vue-router:
-        specifier: ^5.0.4
-        version: 5.0.6(@vue/compiler-sfc@3.5.33)(pinia@3.0.4(typescript@6.0.3)(vue@3.5.33(typescript@6.0.3)))(vue@3.5.33(typescript@6.0.3))
     devDependencies:
       '@tsconfig/node24':
         specifier: ^24.0.4
@@ -87,6 +77,56 @@ importers:
       vue-tsc:
         specifier: ^3.2.6
         version: 3.2.7(typescript@6.0.3)
+
+  packages/core: {}
+
+  packages/app:
+    dependencies:
+      pinia:
+        specifier: ^3.0.4
+        version: 3.0.4(typescript@6.0.3)(vue@3.5.33(typescript@6.0.3))
+      vue:
+        specifier: ^3.5.32
+        version: 3.5.33(typescript@6.0.3)
+      vue-router:
+        specifier: ^5.0.4
+        version: 5.0.6(@vue/compiler-sfc@3.5.33)(pinia@3.0.4(typescript@6.0.3)(vue@3.5.33(typescript@6.0.3)))(vue@3.5.33(typescript@6.0.3))
+
+  packages/layout:
+    dependencies:
+      '@pptx-player/core':
+        specifier: workspace:*
+        version: link:../core
+
+  packages/player:
+    dependencies:
+      '@pptx-player/core':
+        specifier: workspace:*
+        version: link:../core
+      '@pptx-player/layout':
+        specifier: workspace:*
+        version: link:../layout
+      '@pptx-player/renderer-svg':
+        specifier: workspace:*
+        version: link:../renderer-svg
+
+  packages/renderer-canvas:
+    dependencies:
+      '@pptx-player/core':
+        specifier: workspace:*
+        version: link:../core
+      '@pptx-player/layout':
+        specifier: workspace:*
+        version: link:../layout
+
+  packages/renderer-svg:
+    dependencies:
+      '@pptx-player/core':
+        specifier: workspace:*
+        version: link:../core
+      '@pptx-player/layout':
+        specifier: workspace:*
+        version: link:../layout
 
 packages:
 

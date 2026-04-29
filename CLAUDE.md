@@ -4,11 +4,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Repository status
 
-This is an early Vue 3 + Vite + TypeScript application for an enterprise PPTX Web Player. The current source tree is still close to the Vite starter template, while the product architecture is documented in `PPTX_WEB_PLAYER_ARCHITECTURE.md`.
+This is an early Vue 3 + Vite + TypeScript pnpm monorepo for an enterprise PPTX Web Player. The Vue app lives in `packages/app`, while the product architecture is documented in `docs/PPTX_WEB_PLAYER_ARCHITECTURE.md`.
 
 Primary product/architecture context:
 
-- `PPTX_WEB_PLAYER_ARCHITECTURE.md` — enterprise PPTX Web Player architecture, module boundaries, capability roadmap, diagnostics strategy, worker/performance direction, and risks.
+- `docs/PPTX_WEB_PLAYER_ARCHITECTURE.md` — enterprise PPTX Web Player architecture, module boundaries, capability roadmap, diagnostics strategy, worker/performance direction, and risks.
 - `README.md` — Vite/Vue starter instructions and basic command reference.
 
 ## Commands
@@ -46,20 +46,29 @@ pnpm test:unit -- -t "mounts renders properly"
 
 ## Current application structure
 
-The implemented code currently has a minimal Vue app shape:
+The repository is a pnpm workspace. The implemented app code currently has a minimal Vue app shape:
 
-- `src/main.ts` creates the Vue app, installs Pinia and Vue Router, and mounts `App.vue` to `#app`.
-- `src/App.vue` is still starter-template content.
-- `src/router/index.ts` creates a router with `createWebHistory(import.meta.env.BASE_URL)` and no routes yet.
-- `src/stores/counter.ts` is a starter Pinia setup store example.
-- `src/__tests__/App.spec.ts` is a starter Vitest + Vue Test Utils mount test.
+- `packages/app/src/main.ts` creates the Vue app, installs Pinia and Vue Router, and mounts `App.vue` to `#app`.
+- `packages/app/src/App.vue` is still starter-template content.
+- `packages/app/src/router/index.ts` creates a router with `createWebHistory(import.meta.env.BASE_URL)` and no routes yet.
+- `packages/app/src/stores/counter.ts` is a starter Pinia setup store example.
+- `packages/app/src/__tests__/App.spec.ts` is a starter Vitest + Vue Test Utils mount test.
+
+Current workspace packages:
+
+- `packages/core` — future package/XML/OOXML/model/style/diagnostics core.
+- `packages/layout` — future text/table/group/chart layout package.
+- `packages/renderer-svg` — future SVG renderer package.
+- `packages/renderer-canvas` — future Canvas renderer package.
+- `packages/player` — future player runtime package.
+- `packages/app` — Vue 3 + Vite application.
 
 Configuration:
 
-- `vite.config.ts` enables Vue, Vue JSX, Vue DevTools, and `@` as an alias for `src`.
-- `vitest.config.ts` merges the Vite config and uses `jsdom` for tests.
-- `eslint.config.ts` uses Vue essential rules, recommended Vue TypeScript config, Vitest rules for `src/**/__tests__/*`, Oxlint integration, and Prettier compatibility.
-- TypeScript project references are split across `tsconfig.app.json`, `tsconfig.node.json`, and `tsconfig.vitest.json`.
+- `packages/app/vite.config.ts` enables Vue, Vue JSX, Vue DevTools, and `@` as an alias for `packages/app/src`.
+- `packages/app/vitest.config.ts` merges the app Vite config and uses `jsdom` for tests.
+- `eslint.config.ts` uses Vue essential rules, recommended Vue TypeScript config, Vitest rules for `packages/**/src/**/__tests__/*`, Oxlint integration, and Prettier compatibility.
+- Root `tsconfig.json` references the demo TypeScript project configs; `tsconfig.base.json` is shared by non-Vue workspace packages.
 
 ## Intended product architecture
 
@@ -159,8 +168,7 @@ packages/layout      # text, table, group, chart layout
 packages/renderer-svg
 packages/renderer-canvas
 packages/player
-packages/react
-packages/demo
+packages/app
 packages/fixtures
 packages/tests       # golden, visual, performance
 ```
@@ -210,6 +218,10 @@ High-risk areas identified by the architecture document:
 - user expectations approaching Office fidelity
 
 Mitigation strategy: maintain a capability matrix, emit diagnostics for unsupported features, cover high-frequency enterprise cases first, avoid promising 100% Office equivalence, build a sample library, allow advanced objects to degrade safely.
+
+## Vue-only frontend rule
+
+This project uses Vue as its only JavaScript view framework. Do not introduce React, Svelte, Solid, Angular, or other JavaScript view frameworks in dependencies, package boundaries, examples, docs, or implementation code. UI components and framework adapters must be Vue-based.
 
 ## Vue and TypeScript coding rules
 

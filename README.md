@@ -1,54 +1,75 @@
 # ppt-web-player
 
-This template should help get you started developing with Vue 3 in Vite.
+企业级 PPTX Web Player，当前采用 Vue 3 + Vite + TypeScript + pnpm workspace。
 
-## Recommended IDE Setup
+## 前端框架约束
 
-[VS Code](https://code.visualstudio.com/) + [Vue (Official)](https://marketplace.visualstudio.com/items?itemName=Vue.volar) (and disable Vetur).
+本项目只允许使用 Vue 作为 JavaScript 视图框架。禁止引入 React、Svelte、Solid、Angular 或其他 JavaScript 视图框架。
 
-## Recommended Browser Setup
+## Workspace 结构
 
-- Chromium-based browsers (Chrome, Edge, Brave, etc.):
-  - [Vue.js devtools](https://chromewebstore.google.com/detail/vuejs-devtools/nhdogjmejiglipccpnnnanhbledajbpd)
-  - [Turn on Custom Object Formatter in Chrome DevTools](http://bit.ly/object-formatters)
-- Firefox:
-  - [Vue.js devtools](https://addons.mozilla.org/en-US/firefox/addon/vue-js-devtools/)
-  - [Turn on Custom Object Formatter in Firefox DevTools](https://fxdx.dev/firefox-devtools-custom-object-formatters/)
+```text
+packages/
+  core/             # PPTX package、XML、OOXML、model、style、diagnostics 等核心能力
+  layout/           # 文本、表格、组合、图表布局能力
+  renderer-svg/     # SVG 渲染器
+  renderer-canvas/  # Canvas 渲染器
+  player/           # 播放运行时
+  app/              # Vue 3 + Vite 示例应用
+```
 
-## Type Support for `.vue` Imports in TS
+## 推荐 IDE
 
-TypeScript cannot handle type information for `.vue` imports by default, so we replace the `tsc` CLI with `vue-tsc` for type checking. In editors, we need [Volar](https://marketplace.visualstudio.com/items?itemName=Vue.volar) to make the TypeScript language service aware of `.vue` types.
+- VS Code
+- Vue (Official) 插件
+- 禁用 Vetur
 
-## Customize configuration
-
-See [Vite Configuration Reference](https://vite.dev/config/).
-
-## Project Setup
+## 项目安装
 
 ```sh
 pnpm install
 ```
 
-### Compile and Hot-Reload for Development
+## 开发
 
 ```sh
 pnpm dev
 ```
 
-### Type-Check, Compile and Minify for Production
+该命令会启动 `packages/app` 的 Vite 开发服务器。
+
+## 类型检查
+
+```sh
+pnpm type-check
+```
+
+## 构建
 
 ```sh
 pnpm build
 ```
 
-### Run Unit Tests with [Vitest](https://vitest.dev/)
+## 单元测试
 
 ```sh
 pnpm test:unit
 ```
 
-### Lint with [ESLint](https://eslint.org/)
+运行 app 单个测试文件示例：
+
+```sh
+pnpm --filter @pptx-player/app test:unit src/__tests__/App.spec.ts
+```
+
+## Lint
 
 ```sh
 pnpm lint
+```
+
+## 格式化
+
+```sh
+pnpm format
 ```

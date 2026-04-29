@@ -809,7 +809,6 @@ Annotation Overlay
 @company/pptx-renderer-svg
 @company/pptx-renderer-canvas
 @company/pptx-player
-@company/pptx-react
 @company/pptx-vue
 ```
 
@@ -853,11 +852,11 @@ packages/
       PreloadManager.ts
       ViewportManager.ts
 
-  react/
+  vue/
     src/
-      PptxPlayerView.tsx
+      PptxPlayerView.vue
 
-  demo/
+  app/
     src/
 
   fixtures/
@@ -876,29 +875,29 @@ packages/
 
 建议从第一天就维护这个矩阵。
 
-| 能力 | V1 | V2 | V3 | V4 |
-|---|---:|---:|---:|---:|
-| PPTX 解包 | 支持 | 支持 | 支持 | 支持 |
-| slide/layout/master | 支持 | 支持 | 支持 | 支持 |
-| 主题色 | 部分 | 支持 | 支持 | 支持 |
-| 文本基础样式 | 部分 | 支持 | 支持 | 支持 |
-| 中文字体 fallback | 部分 | 支持 | 支持 | 支持 |
-| bullet/numbering | 部分 | 支持 | 支持 | 支持 |
-| autoFit | 不支持 | 部分 | 支持 | 支持 |
-| 图片 | 支持 | 支持 | 支持 | 支持 |
-| 图片裁剪 | 部分 | 支持 | 支持 | 支持 |
-| 基础形状 | 支持 | 支持 | 支持 | 支持 |
-| 复杂 shape path | 部分 | 部分 | 支持 | 支持 |
-| 表格 | 部分 | 支持 | 支持 | 支持 |
-| 图表 | 降级 | 部分 | 支持常见 | 增强 |
-| SmartArt | 降级 | 降级 | 部分 | 增强 |
-| 页面切换 | 部分 | 支持 | 支持 | 支持 |
-| 对象动画 | 不支持 | 部分 | 常见支持 | 增强 |
-| 视频/音频 | 部分 | 部分 | 支持 | 支持 |
-| 备注 | 支持 | 支持 | 支持 | 支持 |
-| diagnostics | 支持 | 支持 | 支持 | 支持 |
-| Worker 解析 | 支持 | 支持 | 支持 | 支持 |
-| 截图回归 | 部分 | 支持 | 支持 | 支持 |
+| 能力                |     V1 |   V2 |       V3 |   V4 |
+| ------------------- | -----: | ---: | -------: | ---: |
+| PPTX 解包           |   支持 | 支持 |     支持 | 支持 |
+| slide/layout/master |   支持 | 支持 |     支持 | 支持 |
+| 主题色              |   部分 | 支持 |     支持 | 支持 |
+| 文本基础样式        |   部分 | 支持 |     支持 | 支持 |
+| 中文字体 fallback   |   部分 | 支持 |     支持 | 支持 |
+| bullet/numbering    |   部分 | 支持 |     支持 | 支持 |
+| autoFit             | 不支持 | 部分 |     支持 | 支持 |
+| 图片                |   支持 | 支持 |     支持 | 支持 |
+| 图片裁剪            |   部分 | 支持 |     支持 | 支持 |
+| 基础形状            |   支持 | 支持 |     支持 | 支持 |
+| 复杂 shape path     |   部分 | 部分 |     支持 | 支持 |
+| 表格                |   部分 | 支持 |     支持 | 支持 |
+| 图表                |   降级 | 部分 | 支持常见 | 增强 |
+| SmartArt            |   降级 | 降级 |     部分 | 增强 |
+| 页面切换            |   部分 | 支持 |     支持 | 支持 |
+| 对象动画            | 不支持 | 部分 | 常见支持 | 增强 |
+| 视频/音频           |   部分 | 部分 |     支持 | 支持 |
+| 备注                |   支持 | 支持 |     支持 | 支持 |
+| diagnostics         |   支持 | 支持 |     支持 | 支持 |
+| Worker 解析         |   支持 | 支持 |     支持 | 支持 |
+| 截图回归            |   部分 | 支持 |     支持 | 支持 |
 
 ## 16. 技术选型
 
@@ -912,7 +911,7 @@ packages/
 - 测试框架：Vitest。
 - 代码质量：ESLint + Oxlint + Prettier。
 
-当前仓库已基于 Vue 3 + Vite + TypeScript 初始化，后续 demo、播放器壳、诊断面板、样本页均沿用该技术栈，不额外引入 React 或其他 UI 框架。
+当前仓库已基于 Vue 3 + Vite + TypeScript 初始化，后续 demo、播放器壳、诊断面板、样本页和框架适配层均沿用 Vue 技术栈，禁止引入 React、Svelte、Solid、Angular 或其他 JavaScript 视图框架。
 
 ### 16.2 PPTX 解包
 

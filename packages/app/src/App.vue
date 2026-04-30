@@ -1,13 +1,8 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
-import {
-  parsePptx,
-  type Diagnostic,
-  type Fill,
-  type LineEndStyle,
-  type LineStyle,
-  type Presentation,
-} from '@pptx-player/core'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { parsePptx, type Diagnostic, type Fill, type Presentation } from '@pptx-player/core'
+import { renderSlideToCanvas } from '@pptx-player/renderer-canvas'
+import { renderSlideToSvg } from '@pptx-player/renderer-svg'
 
 import { sampleDecks } from './samples'
 
@@ -18,11 +13,25 @@ const presentation = ref<Presentation | null>(null)
 const mediaUrls = ref<Record<string, string>>({})
 const activeFileName = ref('')
 const activeSlideIndex = ref(0)
+const canvasHost = ref<HTMLCanvasElement | null>(null)
+const canvasBitmaps = ref<Record<string, ImageBitmap>>({})
 
 const hasResult = computed(() => presentation.value !== null)
 const slideCount = computed(() => presentation.value?.slides.length ?? 0)
 const activeSlide = computed(() => presentation.value?.slides[activeSlideIndex.value] ?? presentation.value?.slides[0] ?? null)
-const previewElements = computed(() => activeSlide.value?.elements.filter((element) => element.transform) ?? [])
+const activeSlideSvg = computed(() => {
+  if (!presentation.value || !activeSlide.value) {
+    return ''
+  }
+
+  return renderSlideToSvg({
+    presentation: presentation.value,
+    slide: activeSlide.value,
+    mediaUrls: mediaUrls.value,
+    ariaLabel: `${activeSlide.value.part} preview`,
+    className: 'slide-preview',
+  })
+})
 const canGoFirstSlide = computed(() => activeSlideIndex.value > 0)
 const canGoPreviousSlide = computed(() => activeSlideIndex.value > 0)
 const canGoNextSlide = computed(() => activeSlideIndex.value < slideCount.value - 1)
@@ -36,12 +45,14 @@ async function parseInput(input: Blob | ArrayBuffer, fileName: string) {
   activeFileName.value = fileName
   activeSlideIndex.value = 0
   revokeMediaUrls()
+  revokeCanvasBitmaps()
 
   try {
     const result = await parsePptx(input)
     presentation.value = result.presentation
     diagnostics.value = result.diagnostics
     mediaUrls.value = createMediaUrls(result.media)
+    canvasBitmaps.value = await createCanvasBitmaps(result.media)
 
     if (!result.presentation) {
       errorMessage.value = '未能解析 presentation.xml，请查看 diagnostics。'
@@ -134,14 +145,6 @@ function isInteractiveTarget(target: EventTarget | null): boolean {
   return target instanceof HTMLElement && ['BUTTON', 'INPUT', 'TEXTAREA', 'SELECT', 'A'].includes(target.tagName)
 }
 
-function svgFill(fill: Fill | undefined): string {
-  if (!fill) {
-    return '#cbd5e1'
-  }
-
-  return fill.type === 'solid' ? fill.color : 'none'
-}
-
 function solidFillColor(fill: Fill | undefined, fallback: string): string {
   return fill?.type === 'solid' ? fill.color : fallback
 }
@@ -154,60 +157,26 @@ function fillLabel(fill: Fill | undefined): string {
   return fill.type === 'solid' ? fill.color : 'noFill'
 }
 
-function svgFillOpacity(fill: Fill | undefined): number {
-  return fill?.type === 'solid' ? (fill.opacity ?? 1) : 1
-}
-
-function svgStrokeOpacity(line: LineStyle | undefined): number {
-  return line?.opacity ?? 1
-}
-
-function svgStrokeDasharray(line: LineStyle | undefined): string | undefined {
-  if (!line?.dash) {
-    return undefined
-  }
-
-  const unit = Math.max(1, line.width ?? 1)
-  const dashPatterns: Record<string, number[]> = {
-    dash: [3, 2],
-    dashDot: [3, 2, 1, 2],
-    dot: [1, 2],
-    lgDash: [6, 2],
-    lgDashDot: [6, 2, 1, 2],
-    lgDashDotDot: [6, 2, 1, 2, 1, 2],
-    sysDash: [3, 1],
-    sysDashDot: [3, 1, 1, 1],
-    sysDashDotDot: [3, 1, 1, 1, 1, 1],
-    sysDot: [1, 1],
-  }
-  const pattern = dashPatterns[line.dash]
-
-  return pattern?.map((value) => value * unit).join(' ')
-}
-
-function svgMarkerStart(line: LineStyle | undefined): string | undefined {
-  return svgMarker(line?.headEnd)
-}
-
-function svgMarkerEnd(line: LineStyle | undefined): string | undefined {
-  return svgMarker(line?.tailEnd)
-}
-
-function svgMarker(lineEnd: LineEndStyle | undefined): string | undefined {
-  const markerIds: Record<string, string> = {
-    arrow: 'ppt-marker-triangle',
-    diamond: 'ppt-marker-diamond',
-    oval: 'ppt-marker-oval',
-    stealth: 'ppt-marker-stealth',
-    triangle: 'ppt-marker-triangle',
-  }
-  const markerId = lineEnd ? markerIds[lineEnd.type] : undefined
-
-  return markerId ? `url(#${markerId})` : undefined
-}
-
 function createMediaUrls(media: Record<string, Blob>): Record<string, string> {
   return Object.fromEntries(Object.entries(media).map(([part, blob]) => [part, URL.createObjectURL(blob)]))
+}
+
+async function createCanvasBitmaps(media: Record<string, Blob>): Promise<Record<string, ImageBitmap>> {
+  if (typeof createImageBitmap !== 'function') {
+    return {}
+  }
+
+  const entries = await Promise.all(
+    Object.entries(media).map(async ([part, blob]) => {
+      try {
+        return [part, await createImageBitmap(blob)] as const
+      } catch {
+        return null
+      }
+    }),
+  )
+
+  return Object.fromEntries(entries.filter((entry): entry is readonly [string, ImageBitmap] => entry !== null))
 }
 
 function revokeMediaUrls() {
@@ -218,21 +187,62 @@ function revokeMediaUrls() {
   mediaUrls.value = {}
 }
 
-onMounted(() => window.addEventListener('keydown', handleKeydown))
+function revokeCanvasBitmaps() {
+  for (const bitmap of Object.values(canvasBitmaps.value)) {
+    bitmap.close()
+  }
+
+  canvasBitmaps.value = {}
+}
+
+function renderActiveSlideToCanvas() {
+  if (!presentation.value || !activeSlide.value || !canvasHost.value) {
+    return
+  }
+
+  const canvas = canvasHost.value
+  const context = canvas.getContext('2d')
+
+  if (!context) {
+    return
+  }
+
+  canvas.width = presentation.value.width
+  canvas.height = presentation.value.height
+
+  renderSlideToCanvas({
+    presentation: presentation.value,
+    slide: activeSlide.value,
+    context,
+    mediaBitmaps: canvasBitmaps.value,
+    clear: true,
+  })
+}
+
+watch([presentation, activeSlide, canvasBitmaps], async () => {
+  await nextTick()
+  renderActiveSlideToCanvas()
+})
+
+onMounted(() => {
+  window.addEventListener('keydown', handleKeydown)
+  renderActiveSlideToCanvas()
+})
 
 onBeforeUnmount(() => {
   window.removeEventListener('keydown', handleKeydown)
   revokeMediaUrls()
+  revokeCanvasBitmaps()
 })
 </script>
 
 <template>
   <main class="app-shell">
     <section class="hero-panel">
-      <p class="eyebrow">PPTX Web Player · Phase 0</p>
+      <p class="eyebrow">PPTX Web Player · Week 3</p>
       <h1>企业可控 PPTX Web Player</h1>
       <p class="description">
-        当前阶段打通 PPTX 解包、XML 解析、relationships 解析、presentation 尺寸和 slide 列表读取。
+        当前阶段已打通 PPTX 解析与 `renderer-svg` / `renderer-canvas` 静态渲染 MVP，`app` 负责上传、翻页与 diagnostics，渲染逻辑开始正式收口到独立 renderer 包。
       </p>
     </section>
 
@@ -293,7 +303,7 @@ onBeforeUnmount(() => {
 
         <div class="preview-panel">
           <div class="preview-header">
-            <h3>{{ activeSlide ? `Slide #${activeSlide.index + 1} 预览` : 'Slide 预览' }}</h3>
+            <h3>{{ activeSlide ? `Slide #${activeSlide.index + 1} 对照预览` : 'Slide 预览' }}</h3>
             <div class="slide-nav" aria-label="Slide navigation">
               <button type="button" :disabled="!canGoFirstSlide" @click="goToFirstSlide">首页</button>
               <button type="button" :disabled="!canGoPreviousSlide" @click="goToPreviousSlide">上一页</button>
@@ -302,119 +312,27 @@ onBeforeUnmount(() => {
               <button type="button" :disabled="!canGoLastSlide" @click="goToLastSlide">末页</button>
             </div>
           </div>
-          <svg
-            v-if="activeSlide"
-            class="slide-preview"
-            role="img"
-            :aria-label="`${activeSlide.part} preview`"
-            :viewBox="`0 0 ${presentation.width} ${presentation.height}`"
-          >
-            <defs>
-              <marker id="ppt-marker-triangle" markerHeight="8" markerWidth="8" orient="auto" refX="7" refY="4">
-                <path d="M 0 0 L 8 4 L 0 8 z" fill="context-stroke" />
-              </marker>
-              <marker id="ppt-marker-stealth" markerHeight="8" markerWidth="9" orient="auto" refX="8" refY="4">
-                <path d="M 0 0 L 9 4 L 0 8 L 3 4 z" fill="context-stroke" />
-              </marker>
-              <marker id="ppt-marker-diamond" markerHeight="8" markerWidth="10" orient="auto" refX="9" refY="4">
-                <path d="M 1 4 L 5 0 L 9 4 L 5 8 z" fill="context-stroke" />
-              </marker>
-              <marker id="ppt-marker-oval" markerHeight="8" markerWidth="8" orient="auto" refX="7" refY="4">
-                <ellipse cx="4" cy="4" fill="context-stroke" rx="4" ry="3" />
-              </marker>
-            </defs>
-            <rect width="100%" height="100%" rx="12" :fill="solidFillColor(activeSlide.background, '#f8fafc')" />
-            <g v-for="element in previewElements" :key="element.id">
-              <template v-if="element.transform">
-                <text
-                  v-if="element.type === 'text'"
-                  :x="element.transform.x"
-                  :y="element.transform.y + 16"
-                  :font-size="Math.max(10, Math.min(24, element.transform.height / 2))"
-                  fill="#0f172a"
-                >
-                  {{ element.text.slice(0, 48) }}
-                </text>
-                <image
-                  v-else-if="element.type === 'image' && element.part && mediaUrls[element.part]"
-                  :x="element.transform.x"
-                  :y="element.transform.y"
-                  :width="element.transform.width"
-                  :height="element.transform.height"
-                  :href="mediaUrls[element.part]"
-                  preserveAspectRatio="xMidYMid meet"
-                />
-                <g v-else-if="element.type === 'image'">
-                  <rect
-                    :x="element.transform.x"
-                    :y="element.transform.y"
-                    :width="element.transform.width"
-                    :height="element.transform.height"
-                    rx="8"
-                    fill="#38bdf8"
-                    fill-opacity="0.28"
-                    stroke="#0284c7"
-                  />
-                  <text :x="element.transform.x + 8" :y="element.transform.y + 20" font-size="12" fill="#075985">
-                    {{ element.part ?? 'image' }}
-                  </text>
-                </g>
-                <ellipse
-                  v-else-if="element.type === 'shape' && element.geometry?.preset === 'ellipse'"
-                  :cx="element.transform.x + element.transform.width / 2"
-                  :cy="element.transform.y + element.transform.height / 2"
-                  :rx="element.transform.width / 2"
-                  :ry="element.transform.height / 2"
-                  :fill="svgFill(element.fill)"
-                  :fill-opacity="svgFillOpacity(element.fill)"
-                  :stroke="element.line?.color ?? '#334155'"
-                  :stroke-width="element.line?.width ?? 1"
-                  :stroke-opacity="svgStrokeOpacity(element.line)"
-                  :stroke-dasharray="svgStrokeDasharray(element.line)"
-                />
-                <rect
-                  v-else-if="element.type === 'shape'"
-                  :x="element.transform.x"
-                  :y="element.transform.y"
-                  :width="element.transform.width"
-                  :height="element.transform.height"
-                  :rx="element.geometry?.preset === 'roundRect' ? Math.min(element.transform.width, element.transform.height) * 0.16 : 0"
-                  :ry="element.geometry?.preset === 'roundRect' ? Math.min(element.transform.width, element.transform.height) * 0.16 : 0"
-                  :fill="svgFill(element.fill)"
-                  :fill-opacity="svgFillOpacity(element.fill)"
-                  :stroke="element.line?.color ?? '#334155'"
-                  :stroke-width="element.line?.width ?? 1"
-                  :stroke-opacity="svgStrokeOpacity(element.line)"
-                  :stroke-dasharray="svgStrokeDasharray(element.line)"
-                />
-                <line
-                  v-else-if="element.type === 'connector'"
-                  :x1="element.transform.x"
-                  :y1="element.transform.y + element.transform.height / 2"
-                  :x2="element.transform.x + element.transform.width"
-                  :y2="element.transform.y + element.transform.height / 2"
-                  :stroke="element.line?.color ?? solidFillColor(element.fill, '#64748b')"
-                  :stroke-width="element.line?.width ?? 4"
-                  :stroke-opacity="svgStrokeOpacity(element.line)"
-                  :stroke-dasharray="svgStrokeDasharray(element.line)"
-                  :marker-start="svgMarkerStart(element.line)"
-                  :marker-end="svgMarkerEnd(element.line)"
-                  stroke-linecap="round"
-                />
-                <rect
-                  v-else
-                  :x="element.transform.x"
-                  :y="element.transform.y"
-                  :width="element.transform.width"
-                  :height="element.transform.height"
-                  fill="none"
-                  stroke="#f97316"
-                  stroke-dasharray="8 6"
-                />
-              </template>
-            </g>
-          </svg>
-          <p v-else class="empty-text">暂无可预览的 slide。</p>
+
+          <div class="preview-grid">
+            <section class="preview-column" aria-labelledby="svg-preview-title">
+              <div class="preview-label-row">
+                <p id="svg-preview-title" class="preview-label">SVG Renderer</p>
+                <span class="preview-meta">字符串拼装 · DOM 挂载</span>
+              </div>
+              <div v-if="activeSlideSvg" class="slide-preview-host" v-html="activeSlideSvg" />
+              <p v-else class="empty-text">暂无可预览的 slide。</p>
+            </section>
+
+            <section class="preview-column" aria-labelledby="canvas-preview-title">
+              <div class="preview-label-row">
+                <p id="canvas-preview-title" class="preview-label">Canvas Renderer</p>
+                <span class="preview-meta">2D context · 即时绘制</span>
+              </div>
+              <div class="slide-preview-host canvas-preview-host">
+                <canvas ref="canvasHost" class="slide-preview-canvas" />
+              </div>
+            </section>
+          </div>
         </div>
 
         <div class="slide-list">
@@ -444,7 +362,7 @@ onBeforeUnmount(() => {
                 <li v-for="element in slide.elements" :key="element.id">
                   <strong>{{ element.type }}</strong>
                   <span v-if="element.type === 'text'">{{ element.text }}</span>
-                  <code v-else-if="element.type === 'image'">{{ element.part ?? element.relationshipId ?? 'missing image relationship' }}</code>
+                  <code v-else-if="element.type === 'image'">{{ element.imagePart ?? element.relationshipId ?? 'missing image relationship' }}</code>
                   <code v-else-if="element.type === 'shape'">
                     fill {{ fillLabel(element.fill) }} · line
                     {{ element.line?.color ?? 'none' }} {{ element.line?.width ?? 0 }}px
@@ -501,7 +419,7 @@ input {
 .app-shell {
   display: grid;
   gap: 24px;
-  width: min(1120px, calc(100vw - 32px));
+  width: min(1240px, calc(100vw - 32px));
   margin: 0 auto;
   padding: 48px 0;
 }
@@ -547,7 +465,7 @@ h1 {
 }
 
 .description {
-  max-width: 720px;
+  max-width: 760px;
   margin-bottom: 0;
   color: #cbd5e1;
   font-size: 18px;
@@ -685,10 +603,65 @@ dd {
   font-weight: 700;
 }
 
-.slide-preview {
+.preview-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.preview-column {
+  display: grid;
+  gap: 10px;
+}
+
+.preview-label-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  align-items: baseline;
+  justify-content: space-between;
+}
+
+.preview-label {
+  margin-bottom: 0;
+  color: #e2e8f0;
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.preview-meta {
+  color: #94a3b8;
+  font-size: 12px;
+}
+
+.slide-preview-host {
+  display: grid;
+  place-items: center;
+  min-height: 220px;
+  border-radius: 16px;
+  overflow: hidden;
+  padding: 14px;
+  background:
+    linear-gradient(180deg, rgba(226, 232, 240, 0.9), rgba(203, 213, 225, 0.95));
+}
+
+.canvas-preview-host {
+  align-items: start;
+}
+
+:deep(.slide-preview) {
+  display: block;
   width: 100%;
   max-height: 520px;
-  border-radius: 16px;
+}
+
+.slide-preview-canvas {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-height: 520px;
   background: #f8fafc;
 }
 
@@ -782,12 +755,15 @@ small {
   color: #fca5a5;
 }
 
-@media (max-width: 780px) {
+@media (max-width: 960px) {
+  .preview-grid,
   .actions,
   .metrics-grid {
     grid-template-columns: 1fr;
   }
+}
 
+@media (max-width: 780px) {
   .hero-panel,
   .control-panel,
   .result-panel,

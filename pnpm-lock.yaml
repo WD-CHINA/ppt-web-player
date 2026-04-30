@@ -83,6 +83,12 @@ importers:
       '@pptx-player/core':
         specifier: workspace:*
         version: link:../core
+      '@pptx-player/renderer-canvas':
+        specifier: workspace:*
+        version: link:../renderer-canvas
+      '@pptx-player/renderer-svg':
+        specifier: workspace:*
+        version: link:../renderer-svg
       pinia:
         specifier: ^3.0.4
         version: 3.0.4(typescript@6.0.3)(vue@3.5.33(typescript@6.0.3))

@@ -1,29 +1,34 @@
+import { pushDiagnostic, slideDiagnosticContext } from '../../diagnostics/context'
+import { DIAGNOSTIC_CODES } from '../../diagnostics/codes'
 import type { Diagnostic } from '../../diagnostics/Diagnostic'
-import { createDiagnostic } from '../../diagnostics/createDiagnostic'
 import type { Slide } from '../../model/Presentation'
 import type { PptxPackage } from '../../package/PptxPackage'
 import type { XmlNode } from '../../xml/XmlNode'
 import * as xml from '../../xml/XmlQuery'
 import { parseSlide } from './parseSlide'
+import type { PresentationReferences } from './parsePresentationReferences'
 
 const PRESENTATIONML_NS = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships/slide'
+const LAYOUT_RELATIONSHIP_TYPE = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships/slideLayout'
 
 export async function parseSlideList(
   pptx: PptxPackage,
   presentationPart: string,
   presentationRoot: XmlNode,
   diagnostics: Diagnostic[],
+  references: PresentationReferences,
 ): Promise<Slide[]> {
   const slideIdList = xml.child(presentationRoot, 'p:sldIdLst')
 
   if (!slideIdList) {
-    diagnostics.push(
-      createDiagnostic({
-        code: 'SLIDE_LIST_NOT_FOUND',
+    pushDiagnostic(
+      diagnostics,
+      {
+        code: DIAGNOSTIC_CODES.slideListNotFound,
         severity: 'warning',
-        part: presentationPart,
         message: 'presentation.xml 中未找到 slide 列表。',
-      }),
+      },
+      slideDiagnosticContext(presentationPart),
     )
     return []
   }
@@ -33,15 +38,17 @@ export async function parseSlideList(
   for (const [index, slideNode] of xml.children(slideIdList, 'p:sldId').entries()) {
     const id = xml.attr(slideNode, 'id') ?? String(index + 1)
     const relationshipId = xml.attr(slideNode, 'r:id')
+    const slideContext = slideDiagnosticContext(presentationPart, index)
 
     if (!relationshipId) {
-      diagnostics.push(
-        createDiagnostic({
-          code: 'RELATIONSHIP_NOT_FOUND',
+      pushDiagnostic(
+        diagnostics,
+        {
+          code: DIAGNOSTIC_CODES.relationshipNotFound,
           severity: 'warning',
-          part: presentationPart,
           message: `第 ${index + 1} 页缺少 r:id。`,
-        }),
+        },
+        slideContext,
       )
       continue
     }
@@ -53,18 +60,24 @@ export async function parseSlideList(
     }
 
     if (relationship.type !== PRESENTATIONML_NS) {
-      diagnostics.push(
-        createDiagnostic({
-          code: 'UNEXPECTED_RELATIONSHIP_TYPE',
+      pushDiagnostic(
+        diagnostics,
+        {
+          code: DIAGNOSTIC_CODES.unexpectedRelationshipType,
           severity: 'info',
-          part: presentationPart,
           message: `slide relationship 类型非标准 slide 类型：${relationship.type}`,
-        }),
+        },
+        slideContext,
       )
     }
 
-    const slideContent = await parseSlide(pptx, relationship.path)
+    const slideContent = await parseSlide(pptx, relationship.path, index, references.theme)
     diagnostics.push(...slideContent.diagnostics)
+    const layoutReference = await resolveSlideLayoutReference(pptx, relationship.path)
+    const matchedLayout = layoutReference ? references.slideLayouts.find((layout) => layout.part === layoutReference.path) : undefined
+    const matchedMaster = matchedLayout?.masterPart
+      ? references.slideMasters.find((master) => master.part === matchedLayout.masterPart)
+      : undefined
 
     slides.push({
       id,
@@ -72,10 +85,24 @@ export async function parseSlideList(
       part: relationship.path,
       relationshipId,
       background: slideContent.background,
+      layoutPart: matchedLayout?.part ?? layoutReference?.path,
+      masterPart: matchedMaster?.part,
+      themePart: matchedMaster?.themePart ?? references.theme?.part,
       elements: slideContent.elements,
       diagnostics: slideContent.diagnostics,
     })
   }
 
   return slides
+}
+
+async function resolveSlideLayoutReference(pptx: PptxPackage, slidePart: string) {
+  const relationships = await pptx.getRelationships(slidePart)
+  const layoutRelationship = relationships.find((relationship) => relationship.type === LAYOUT_RELATIONSHIP_TYPE)
+
+  if (!layoutRelationship) {
+    return null
+  }
+
+  return pptx.resolveRelationship(slidePart, layoutRelationship.id)
 }

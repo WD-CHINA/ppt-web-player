@@ -1,9 +1,11 @@
+import { pushDiagnostic, slideDiagnosticContext } from '../../diagnostics/context'
+import { DIAGNOSTIC_CODES } from '../../diagnostics/codes'
 import type { Diagnostic } from '../../diagnostics/Diagnostic'
-import { createDiagnostic } from '../../diagnostics/createDiagnostic'
 import type { Presentation } from '../../model/Presentation'
 import { findOverrideByContentType } from '../../package/ContentTypes'
 import type { PptxPackage } from '../../package/PptxPackage'
 import * as xml from '../../xml/XmlQuery'
+import { parsePresentationReferences } from './parsePresentationReferences'
 import { parseSlideList } from './parseSlideList'
 
 const PRESENTATION_CONTENT_TYPE = 'application/vnd.openxmlformats-officedocument.presentationml.presentation.main+xml'
@@ -18,24 +20,29 @@ export async function parsePresentation(pptx: PptxPackage): Promise<Presentation
   const root = await pptx.getXml(presentationPart)
 
   if (!root) {
-    diagnostics.push(
-      createDiagnostic({
-        code: 'PRESENTATION_NOT_FOUND',
+    pushDiagnostic(
+      pptx.getDiagnostics(),
+      {
+        code: DIAGNOSTIC_CODES.presentationNotFound,
         severity: 'error',
-        part: presentationPart,
         message: '未找到 presentation.xml。',
-      }),
+      },
+      slideDiagnosticContext(presentationPart),
     )
     return null
   }
 
   const size = parseSlideSize(root, diagnostics, presentationPart)
-  const slides = await parseSlideList(pptx, presentationPart, root, diagnostics)
+  const references = await parsePresentationReferences(pptx, presentationPart, root, diagnostics)
+  const slides = await parseSlideList(pptx, presentationPart, root, diagnostics, references)
 
   return {
     id: presentationPart,
     width: size.width,
     height: size.height,
+    theme: references.theme,
+    slideMasters: references.slideMasters,
+    slideLayouts: references.slideLayouts,
     slides,
     diagnostics,
     metadata: {
@@ -50,13 +57,14 @@ function parseSlideSize(root: NonNullable<Awaited<ReturnType<PptxPackage['getXml
   const cy = Number(xml.attr(sizeNode, 'cy'))
 
   if (!Number.isFinite(cx) || !Number.isFinite(cy) || cx <= 0 || cy <= 0) {
-    diagnostics.push(
-      createDiagnostic({
-        code: 'SLIDE_SIZE_NOT_FOUND',
+    pushDiagnostic(
+      diagnostics,
+      {
+        code: DIAGNOSTIC_CODES.slideSizeNotFound,
         severity: 'warning',
-        part,
         message: '未找到有效的 slide 尺寸，使用 16:9 默认尺寸。',
-      }),
+      },
+      slideDiagnosticContext(part),
     )
 
     return {

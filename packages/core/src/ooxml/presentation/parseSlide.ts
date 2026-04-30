@@ -1,21 +1,13 @@
 import { parseFill } from '../drawing/Fill'
-import { parseLine } from '../drawing/Line'
-import { parseTransform } from '../drawing/Transform'
+import { DIAGNOSTIC_CODES } from '../../diagnostics/codes'
+import { pushDiagnostic, slideDiagnosticContext } from '../../diagnostics/context'
 import type { Diagnostic } from '../../diagnostics/Diagnostic'
-import { createDiagnostic } from '../../diagnostics/createDiagnostic'
-import type {
-  ConnectorElement,
-  Fill,
-  ImageElement,
-  ShapeElement,
-  ShapeGeometry,
-  SlideElement,
-  TextElement,
-  UnknownElement,
-} from '../../model/Presentation'
+import type { Fill, PresentationTheme, SlideElement } from '../../model/Presentation'
 import type { PptxPackage } from '../../package/PptxPackage'
 import type { XmlNode } from '../../xml/XmlNode'
 import * as xml from '../../xml/XmlQuery'
+import { parseImageElement } from './parseImage'
+import { createUnknownElement, parseConnectorElement, parseShapeElement } from './parseShape'
 
 export interface ParsedSlideContent {
   background?: Fill
@@ -23,18 +15,25 @@ export interface ParsedSlideContent {
   diagnostics: Diagnostic[]
 }
 
-export async function parseSlide(pptx: PptxPackage, slidePart: string): Promise<ParsedSlideContent> {
+export async function parseSlide(
+  pptx: PptxPackage,
+  slidePart: string,
+  slideIndex?: number,
+  theme?: PresentationTheme,
+): Promise<ParsedSlideContent> {
   const diagnostics: Diagnostic[] = []
+  const context = slideDiagnosticContext(slidePart, slideIndex)
   const root = await pptx.getXml(slidePart)
 
   if (!root) {
-    diagnostics.push(
-      createDiagnostic({
-        code: 'SLIDE_PART_NOT_FOUND',
+    pushDiagnostic(
+      diagnostics,
+      {
+        code: DIAGNOSTIC_CODES.slidePartNotFound,
         severity: 'warning',
-        part: slidePart,
         message: `未能读取 slide part：${slidePart}`,
-      }),
+      },
+      context,
     )
     return { elements: [], diagnostics }
   }
@@ -42,13 +41,14 @@ export async function parseSlide(pptx: PptxPackage, slidePart: string): Promise<
   const shapeTree = xml.path(root, ['p:cSld', 'p:spTree'])
 
   if (!shapeTree) {
-    diagnostics.push(
-      createDiagnostic({
-        code: 'SLIDE_SHAPE_TREE_NOT_FOUND',
+    pushDiagnostic(
+      diagnostics,
+      {
+        code: DIAGNOSTIC_CODES.slideShapeTreeNotFound,
         severity: 'warning',
-        part: slidePart,
         message: 'slide 中未找到 p:spTree。',
-      }),
+      },
+      context,
     )
     return { elements: [], diagnostics }
   }
@@ -57,7 +57,7 @@ export async function parseSlide(pptx: PptxPackage, slidePart: string): Promise<
   const elements: SlideElement[] = []
 
   for (const node of xml.children(shapeTree)) {
-    await appendShapeTreeChild(pptx, slidePart, node, elements, diagnostics)
+    await appendShapeTreeChild(pptx, slidePart, slideIndex, node, elements, diagnostics, theme)
   }
 
   return { background, elements, diagnostics }
@@ -72,9 +72,11 @@ function parseSlideBackground(root: XmlNode): Fill | undefined {
 async function appendShapeTreeChild(
   pptx: PptxPackage,
   slidePart: string,
+  slideIndex: number | undefined,
   node: XmlNode,
   elements: SlideElement[],
   diagnostics: Diagnostic[],
+  theme?: PresentationTheme,
 ): Promise<void> {
   if (node.name === 'p:nvGrpSpPr' || node.name === 'p:grpSpPr') {
     return
@@ -82,13 +84,13 @@ async function appendShapeTreeChild(
 
   if (node.name === 'p:grpSp') {
     for (const child of xml.children(node)) {
-      await appendShapeTreeChild(pptx, slidePart, child, elements, diagnostics)
+      await appendShapeTreeChild(pptx, slidePart, slideIndex, child, elements, diagnostics, theme)
     }
 
     return
   }
 
-  const element = await parseShapeTreeChild(pptx, slidePart, node, elements.length, diagnostics)
+  const element = await parseShapeTreeChild(pptx, slidePart, slideIndex, node, elements.length, diagnostics, theme)
 
   if (element) {
     elements.push(element)
@@ -98,172 +100,23 @@ async function appendShapeTreeChild(
 async function parseShapeTreeChild(
   pptx: PptxPackage,
   slidePart: string,
+  slideIndex: number | undefined,
   node: XmlNode,
   index: number,
   diagnostics: Diagnostic[],
+  theme?: PresentationTheme,
 ): Promise<SlideElement | null> {
   if (node.name === 'p:sp') {
-    return parseShapeElement(node, index)
+    return parseShapeElement(node, index, slidePart, theme)
   }
 
   if (node.name === 'p:cxnSp') {
-    return parseConnectorElement(node, index)
+    return parseConnectorElement(node, index, slidePart)
   }
 
   if (node.name === 'p:pic') {
-    return parseImageElement(pptx, slidePart, node, index, diagnostics)
+    return parseImageElement(pptx, slidePart, slideIndex, node, index, diagnostics)
   }
 
-  return createUnknownElement(slidePart, node, index, diagnostics)
-}
-
-function parseShapeElement(node: XmlNode, index: number): TextElement | ShapeElement | null {
-  const textBody = xml.child(node, 'p:txBody')
-  const text = xml.text(textBody).trim()
-  const transform = parseTransform(node)
-  const fill = parseFill(node)
-  const line = parseLine(node)
-  const geometry = parseGeometry(node)
-
-  if (text) {
-    return {
-      id: elementId(index),
-      index,
-      name: shapeName(node),
-      transform,
-      fill,
-      line,
-      geometry,
-      type: 'text',
-      text,
-    }
-  }
-
-  if (!transform && !fill && !line) {
-    return null
-  }
-
-  return {
-    id: elementId(index),
-    index,
-    name: shapeName(node),
-    transform,
-    fill,
-    line,
-    geometry,
-    type: 'shape',
-  }
-}
-
-function parseGeometry(node: XmlNode): ShapeGeometry | undefined {
-  const presetGeometry = xml.path(node, ['p:spPr', 'a:prstGeom'])
-  const preset = xml.attr(presetGeometry, 'prst')
-
-  return preset ? { type: 'preset', preset } : undefined
-}
-
-function parseConnectorElement(node: XmlNode, index: number): ConnectorElement {
-  return {
-    id: elementId(index),
-    index,
-    name: shapeName(node),
-    transform: parseTransform(node),
-    fill: parseFill(node),
-    line: parseLine(node),
-    type: 'connector',
-  }
-}
-
-async function parseImageElement(
-  pptx: PptxPackage,
-  slidePart: string,
-  node: XmlNode,
-  index: number,
-  diagnostics: Diagnostic[],
-): Promise<ImageElement> {
-  const relationshipId = findFirstAttribute(node, 'r:embed')
-
-  if (!relationshipId) {
-    diagnostics.push(
-      createDiagnostic({
-        code: 'IMAGE_RELATIONSHIP_NOT_FOUND',
-        severity: 'warning',
-        part: slidePart,
-        message: '图片元素缺少 r:embed。',
-      }),
-    )
-
-    return {
-      id: elementId(index),
-      index,
-      name: shapeName(node),
-      transform: parseTransform(node),
-      type: 'image',
-      isExternal: false,
-    }
-  }
-
-  const relationship = await pptx.resolveRelationship(slidePart, relationshipId)
-
-  if (!relationship) {
-    return {
-      id: elementId(index),
-      index,
-      name: shapeName(node),
-      transform: parseTransform(node),
-      type: 'image',
-      relationshipId,
-      isExternal: false,
-    }
-  }
-
-  return {
-    id: elementId(index),
-    index,
-    name: shapeName(node),
-    transform: parseTransform(node),
-    type: 'image',
-    relationshipId,
-    part: relationship.path,
-    isExternal: relationship.isExternal,
-  }
-}
-
-function createUnknownElement(
-  slidePart: string,
-  node: XmlNode,
-  index: number,
-  diagnostics: Diagnostic[],
-): UnknownElement {
-  diagnostics.push(
-    createDiagnostic({
-      code: 'UNSUPPORTED_SLIDE_ELEMENT',
-      severity: 'info',
-      part: slidePart,
-      message: `暂不支持的 slide 元素：${node.name}`,
-      detail: { nodeName: node.name },
-    }),
-  )
-
-  return {
-    id: elementId(index),
-    index,
-    name: shapeName(node),
-    transform: parseTransform(node),
-    line: parseLine(node),
-    type: 'unknown',
-    nodeName: node.name,
-  }
-}
-
-function findFirstAttribute(node: XmlNode, name: string): string | undefined {
-  return xml.attr(node, name) ?? node.children.map((child) => findFirstAttribute(child, name)).find(Boolean)
-}
-
-function shapeName(node: XmlNode): string | undefined {
-  return findFirstAttribute(xml.child(node, 'p:nvSpPr') ?? xml.child(node, 'p:nvPicPr') ?? node, 'name')
-}
-
-function elementId(index: number): string {
-  return `element-${index + 1}`
+  return createUnknownElement(node, index, slidePart, slideIndex, diagnostics)
 }

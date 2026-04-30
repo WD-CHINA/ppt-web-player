@@ -4,6 +4,9 @@ export interface Presentation {
   id: string
   width: number
   height: number
+  theme?: PresentationTheme
+  slideMasters: SlideMaster[]
+  slideLayouts: SlideLayout[]
   slides: Slide[]
   diagnostics: Diagnostic[]
   metadata: PresentationMetadata
@@ -13,6 +16,48 @@ export interface PresentationMetadata {
   presentationPart: string
 }
 
+export interface PresentationTheme {
+  part: string
+  name?: string
+  colorScheme?: ThemeColorScheme
+  fontScheme?: ThemeFontScheme
+}
+
+export interface ThemeColorScheme {
+  dark1?: string
+  light1?: string
+  dark2?: string
+  light2?: string
+  accent1?: string
+  accent2?: string
+  accent3?: string
+  accent4?: string
+  accent5?: string
+  accent6?: string
+  hyperlink?: string
+  followedHyperlink?: string
+}
+
+export interface ThemeFontScheme {
+  majorLatin?: string
+  minorLatin?: string
+}
+
+export interface SlideMaster {
+  id: string
+  part: string
+  relationshipId: string
+  themePart?: string
+  layoutParts: string[]
+}
+
+export interface SlideLayout {
+  id: string
+  part: string
+  relationshipId?: string
+  masterPart?: string
+}
+
 export interface Slide {
   id: string
   index: number
@@ -20,6 +65,9 @@ export interface Slide {
   relationshipId: string
   name?: string
   background?: Fill
+  layoutPart?: string
+  masterPart?: string
+  themePart?: string
   elements: SlideElement[]
   diagnostics: Diagnostic[]
 }
@@ -67,25 +115,96 @@ export interface Transform {
   height: number
 }
 
+export interface ElementSource {
+  part: string
+  nodeName: string
+}
+
+export interface TextBody {
+  paragraphs: Paragraph[]
+}
+
+export interface Paragraph {
+  runs: TextRun[]
+  text: string
+  style?: ParagraphStyle
+}
+
+export interface ParagraphStyle {
+  align?: string
+  level?: number
+  indent?: number
+  marginLeft?: number
+  marginRight?: number
+  defaultTabSize?: number
+  rtl?: boolean
+  bullet?: BulletStyle
+  lineSpacing?: TextSpacing
+  spaceBefore?: TextSpacing
+  spaceAfter?: TextSpacing
+  defaultRunStyle?: TextStyle
+}
+
+export interface BulletStyle {
+  type: 'none' | 'character' | 'auto-number'
+  character?: string
+  autoNumberScheme?: string
+  autoNumberStartAt?: number
+  fontFace?: string
+  color?: string
+  fontSize?: number
+}
+
+export interface TextSpacing {
+  points?: number
+  percent?: number
+}
+
+export interface TextRun {
+  text: string
+  style?: TextStyle
+}
+
+export interface TextStyle {
+  bold?: boolean
+  italic?: boolean
+  underline?: string
+  fontSize?: number
+  color?: string
+  fontFace?: string
+}
+
 export interface SlideElementBase {
   id: string
   index: number
+  type: SlideElement['type']
   name?: string
   transform?: Transform
   fill?: Fill
   line?: LineStyle
   geometry?: ShapeGeometry
+  slidePart: string
+  source: ElementSource
+  visible: boolean
+  opacity: number
+  zIndex: number
+  diagnostics?: Diagnostic[]
 }
 
 export interface TextElement extends SlideElementBase {
   type: 'text'
   text: string
+  textBody: TextBody
 }
 
 export interface ImageElement extends SlideElementBase {
   type: 'image'
   relationshipId?: string
-  part?: string
+  imagePart?: string
+  image?: {
+    part?: string
+    isExternal: boolean
+  }
   isExternal: boolean
 }
 

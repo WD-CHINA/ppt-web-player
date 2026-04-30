@@ -1,7 +1,9 @@
+import type { DiagnosticCode } from './codes'
+
 export type DiagnosticSeverity = 'info' | 'warning' | 'error'
 
 export interface Diagnostic {
-  code: string
+  code: DiagnosticCode
   severity: DiagnosticSeverity
   slideIndex?: number
   elementId?: string

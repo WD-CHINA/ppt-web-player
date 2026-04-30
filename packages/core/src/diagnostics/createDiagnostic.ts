@@ -1,7 +1,8 @@
 import type { Diagnostic, DiagnosticSeverity } from './Diagnostic'
+import type { DiagnosticCode } from './codes'
 
 export interface DiagnosticInput {
-  code: string
+  code: DiagnosticCode
   severity?: DiagnosticSeverity
   slideIndex?: number
   elementId?: string

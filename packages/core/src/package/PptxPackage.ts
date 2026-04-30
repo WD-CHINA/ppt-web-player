@@ -1,6 +1,7 @@
 import JSZip from 'jszip'
 
 import type { Diagnostic } from '../diagnostics/Diagnostic'
+import { DIAGNOSTIC_CODES } from '../diagnostics/codes'
 import { createDiagnostic } from '../diagnostics/createDiagnostic'
 import { parseXml } from '../xml/XmlParser'
 import type { XmlNode } from '../xml/XmlNode'
@@ -25,7 +26,7 @@ export class PptxPackage {
     const zip = await JSZip.loadAsync(input).catch((error: unknown) => {
       diagnostics.push(
         createDiagnostic({
-          code: 'PPTX_ZIP_OPEN_FAILED',
+          code: DIAGNOSTIC_CODES.pptxZipOpenFailed,
           severity: 'error',
           message: '无法打开 PPTX ZIP 包。',
           detail: error,
@@ -52,7 +53,7 @@ export class PptxPackage {
     if (!file) {
       this.diagnostics.push(
         createDiagnostic({
-          code: 'PART_NOT_FOUND',
+          code: DIAGNOSTIC_CODES.partNotFound,
           severity: 'warning',
           part: partPath,
           message: `PPTX part 不存在：${partPath}`,
@@ -71,7 +72,7 @@ export class PptxPackage {
     if (!file) {
       this.diagnostics.push(
         createDiagnostic({
-          code: 'PART_NOT_FOUND',
+          code: DIAGNOSTIC_CODES.partNotFound,
           severity: 'warning',
           part: partPath,
           message: `PPTX part 不存在：${partPath}`,
@@ -103,7 +104,7 @@ export class PptxPackage {
     } catch (error) {
       this.diagnostics.push(
         createDiagnostic({
-          code: 'XML_PARSE_FAILED',
+          code: DIAGNOSTIC_CODES.xmlParseFailed,
           severity: 'error',
           part: partPath,
           message: `XML 解析失败：${partPath}`,
@@ -170,7 +171,7 @@ export class PptxPackage {
     if (!relationship) {
       this.diagnostics.push(
         createDiagnostic({
-          code: 'RELATIONSHIP_NOT_FOUND',
+          code: DIAGNOSTIC_CODES.relationshipNotFound,
           severity: 'warning',
           part: partPath,
           message: `Relationship 不存在：${rId}`,

@@ -6,6 +6,7 @@
   "main": "./src/index.ts",
   "types": "./src/index.ts",
   "scripts": {
+    "test:unit": "vitest run src/index.spec.ts",
     "type-check": "tsc --noEmit -p tsconfig.json"
   },
   "dependencies": {

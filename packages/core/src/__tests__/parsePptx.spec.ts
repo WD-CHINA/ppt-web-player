@@ -3,6 +3,7 @@ import { fileURLToPath } from 'node:url'
 import JSZip from 'jszip'
 import { describe, expect, it } from 'vitest'
 
+import { DIAGNOSTIC_CODES } from '../diagnostics/codes'
 import { parsePptx } from '../parser/parsePptx'
 
 describe('parsePptx', () => {
@@ -31,6 +32,7 @@ describe('parsePptx', () => {
     zip.file(
       'ppt/presentation.xml',
       `<p:presentation xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
+  <p:sldMasterIdLst><p:sldMasterId id="2147483648" r:id="rIdMaster1"/></p:sldMasterIdLst>
   <p:sldSz cx="9144000" cy="5143500"/>
   <p:sldIdLst><p:sldId id="256" r:id="rId1"/></p:sldIdLst>
 </p:presentation>`,
@@ -38,8 +40,53 @@ describe('parsePptx', () => {
     zip.file(
       'ppt/_rels/presentation.xml.rels',
       `<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rIdMaster1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/slideMaster" Target="slideMasters/slideMaster1.xml"/>
   <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/slide" Target="slides/slide1.xml"/>
 </Relationships>`,
+    )
+    zip.file(
+      'ppt/slideMasters/slideMaster1.xml',
+      `<p:sldMaster xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main">
+  <p:cSld name="Master 1"><p:spTree><p:nvGrpSpPr/><p:grpSpPr/></p:spTree></p:cSld>
+</p:sldMaster>`,
+    )
+    zip.file(
+      'ppt/slideMasters/_rels/slideMaster1.xml.rels',
+      `<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rIdTheme1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/theme" Target="../theme/theme1.xml"/>
+  <Relationship Id="rIdLayout1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/slideLayout" Target="../slideLayouts/slideLayout1.xml"/>
+</Relationships>`,
+    )
+    zip.file(
+      'ppt/slideLayouts/slideLayout1.xml',
+      `<p:sldLayout xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main">
+  <p:cSld name="Layout 1"><p:spTree><p:nvGrpSpPr/><p:grpSpPr/></p:spTree></p:cSld>
+</p:sldLayout>`,
+    )
+    zip.file(
+      'ppt/theme/theme1.xml',
+      `<a:theme xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" name="Office Theme">
+  <a:themeElements>
+    <a:clrScheme name="Office">
+      <a:dk1><a:srgbClr val="000000"/></a:dk1>
+      <a:lt1><a:srgbClr val="FFFFFF"/></a:lt1>
+      <a:dk2><a:srgbClr val="1F2937"/></a:dk2>
+      <a:lt2><a:srgbClr val="F9FAFB"/></a:lt2>
+      <a:accent1><a:srgbClr val="3486F7"/></a:accent1>
+      <a:accent2><a:srgbClr val="22C55E"/></a:accent2>
+      <a:accent3><a:srgbClr val="A855F7"/></a:accent3>
+      <a:accent4><a:srgbClr val="F97316"/></a:accent4>
+      <a:accent5><a:srgbClr val="0EA5E9"/></a:accent5>
+      <a:accent6><a:srgbClr val="EF4444"/></a:accent6>
+      <a:hlink><a:srgbClr val="2563EB"/></a:hlink>
+      <a:folHlink><a:srgbClr val="7C3AED"/></a:folHlink>
+    </a:clrScheme>
+    <a:fontScheme name="Office">
+      <a:majorFont><a:latin typeface="Aptos Display"/></a:majorFont>
+      <a:minorFont><a:latin typeface="Aptos"/></a:minorFont>
+    </a:fontScheme>
+  </a:themeElements>
+</a:theme>`,
     )
     zip.file(
       'ppt/slides/slide1.xml',
@@ -63,6 +110,7 @@ describe('parsePptx', () => {
     zip.file(
       'ppt/slides/_rels/slide1.xml.rels',
       `<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rIdLayoutSlide1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/slideLayout" Target="../slideLayouts/slideLayout1.xml"/>
   <Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="../media/image1.png"/>
 </Relationships>`,
     )
@@ -73,24 +121,90 @@ describe('parsePptx', () => {
     const slide = result.presentation?.slides[0]
     const elements = slide?.elements
 
+    expect(result.presentation?.theme).toEqual({
+      part: 'ppt/theme/theme1.xml',
+      name: 'Office Theme',
+      colorScheme: {
+        dark1: '#000000',
+        light1: '#FFFFFF',
+        dark2: '#1F2937',
+        light2: '#F9FAFB',
+        accent1: '#3486F7',
+        accent2: '#22C55E',
+        accent3: '#A855F7',
+        accent4: '#F97316',
+        accent5: '#0EA5E9',
+        accent6: '#EF4444',
+        hyperlink: '#2563EB',
+        followedHyperlink: '#7C3AED',
+      },
+      fontScheme: {
+        majorLatin: 'Aptos Display',
+        minorLatin: 'Aptos',
+      },
+    })
+    expect(result.presentation?.slideMasters).toEqual([
+      {
+        id: 'rIdMaster1',
+        part: 'ppt/slideMasters/slideMaster1.xml',
+        relationshipId: 'rIdMaster1',
+        themePart: 'ppt/theme/theme1.xml',
+        layoutParts: ['ppt/slideLayouts/slideLayout1.xml'],
+      },
+    ])
+    expect(result.presentation?.slideLayouts).toEqual([
+      {
+        id: 'rIdLayout1',
+        part: 'ppt/slideLayouts/slideLayout1.xml',
+        relationshipId: 'rIdLayout1',
+        masterPart: 'ppt/slideMasters/slideMaster1.xml',
+      },
+    ])
+    expect(slide?.layoutPart).toBe('ppt/slideLayouts/slideLayout1.xml')
+    expect(slide?.masterPart).toBe('ppt/slideMasters/slideMaster1.xml')
+    expect(slide?.themePart).toBe('ppt/theme/theme1.xml')
     expect(slide?.background).toEqual({ type: 'solid', color: '#F2F7FF' })
     expect(elements).toEqual([
       expect.objectContaining({
         type: 'text',
         text: 'Hello PPTX',
         name: 'Title',
+        slidePart: 'ppt/slides/slide1.xml',
+        source: { part: 'ppt/slides/slide1.xml', nodeName: 'p:sp' },
+        visible: true,
+        opacity: 1,
+        zIndex: 0,
         transform: { x: 96, y: 192, width: 288, height: 96 },
         line: { color: '#111827', width: 4 },
+        textBody: {
+          paragraphs: [
+            {
+              text: 'Hello PPTX',
+              runs: [{ text: 'Hello PPTX' }],
+            },
+          ],
+        },
       }),
       expect.objectContaining({
         type: 'image',
         relationshipId: 'rId2',
-        part: 'ppt/media/image1.png',
+        slidePart: 'ppt/slides/slide1.xml',
+        imagePart: 'ppt/media/image1.png',
+        image: { part: 'ppt/media/image1.png', isExternal: false },
+        source: { part: 'ppt/slides/slide1.xml', nodeName: 'p:pic' },
+        visible: true,
+        opacity: 1,
+        zIndex: 1,
         transform: { x: 480, y: 96, width: 192, height: 192 },
       }),
       expect.objectContaining({
         type: 'shape',
         name: 'Accent Box',
+        slidePart: 'ppt/slides/slide1.xml',
+        source: { part: 'ppt/slides/slide1.xml', nodeName: 'p:sp' },
+        visible: true,
+        opacity: 1,
+        zIndex: 2,
         transform: { x: 96, y: 384, width: 192, height: 96 },
         fill: { type: 'solid', color: '#3486F7', opacity: 0.5 },
         line: { color: '#EF4444', width: 8, opacity: 0.25, dash: 'dash' },
@@ -99,6 +213,11 @@ describe('parsePptx', () => {
       expect.objectContaining({
         type: 'shape',
         name: 'Ellipse',
+        slidePart: 'ppt/slides/slide1.xml',
+        source: { part: 'ppt/slides/slide1.xml', nodeName: 'p:sp' },
+        visible: true,
+        opacity: 1,
+        zIndex: 3,
         transform: { x: 672, y: 384, width: 96, height: 96 },
         fill: { type: 'solid', color: '#A855F7' },
         geometry: { type: 'preset', preset: 'ellipse' },
@@ -106,6 +225,11 @@ describe('parsePptx', () => {
       expect.objectContaining({
         type: 'shape',
         name: 'No Fill Box',
+        slidePart: 'ppt/slides/slide1.xml',
+        source: { part: 'ppt/slides/slide1.xml', nodeName: 'p:sp' },
+        visible: true,
+        opacity: 1,
+        zIndex: 4,
         transform: { x: 768, y: 384, width: 96, height: 96 },
         fill: { type: 'none' },
         line: { color: '#111827', width: 4 },
@@ -114,6 +238,11 @@ describe('parsePptx', () => {
       expect.objectContaining({
         type: 'connector',
         name: 'Connector',
+        slidePart: 'ppt/slides/slide1.xml',
+        source: { part: 'ppt/slides/slide1.xml', nodeName: 'p:cxnSp' },
+        visible: true,
+        opacity: 1,
+        zIndex: 5,
         transform: { x: 384, y: 384, width: 192, height: 96 },
         fill: { type: 'solid', color: '#FFAA00' },
         line: { color: '#0F766E', width: 12, tailEnd: { type: 'triangle', width: 'med', length: 'med' } },
@@ -122,15 +251,47 @@ describe('parsePptx', () => {
         type: 'text',
         text: 'Grouped Hello',
         name: 'Grouped Text',
+        slidePart: 'ppt/slides/slide1.xml',
+        source: { part: 'ppt/slides/slide1.xml', nodeName: 'p:sp' },
+        visible: true,
+        opacity: 1,
+        zIndex: 6,
         transform: { x: 96, y: 48, width: 192, height: 48 },
+        textBody: {
+          paragraphs: [
+            {
+              text: 'Grouped Hello',
+              runs: [{ text: 'Grouped Hello' }],
+            },
+          ],
+        },
       }),
       expect.objectContaining({
         type: 'shape',
         name: 'Grouped Box',
+        slidePart: 'ppt/slides/slide1.xml',
+        source: { part: 'ppt/slides/slide1.xml', nodeName: 'p:sp' },
+        visible: true,
+        opacity: 1,
+        zIndex: 7,
         transform: { x: 288, y: 48, width: 96, height: 96 },
         fill: { type: 'solid', color: '#22C55E' },
       }),
-      expect.objectContaining({ type: 'unknown', nodeName: 'p:graphicFrame' }),
+      expect.objectContaining({
+        type: 'unknown',
+        nodeName: 'p:graphicFrame',
+        slidePart: 'ppt/slides/slide1.xml',
+        source: { part: 'ppt/slides/slide1.xml', nodeName: 'p:graphicFrame' },
+        visible: true,
+        opacity: 1,
+        zIndex: 8,
+        diagnostics: [
+          expect.objectContaining({
+            code: DIAGNOSTIC_CODES.unsupportedSlideElement,
+            elementId: 'element-9',
+          }),
+        ],
+      }),
     ])
     expect(elements?.map((element) => element.id)).toEqual([
       'element-1',
@@ -148,7 +309,405 @@ describe('parsePptx', () => {
     expect(result.media['ppt/media/image1.png']).toBeInstanceOf(Blob)
     expect(result.media['ppt/media/image1.png']?.type).toBe('image/png')
     expect(result.diagnostics).toEqual(
-      expect.arrayContaining([expect.objectContaining({ code: 'UNSUPPORTED_SLIDE_ELEMENT' })]),
+      expect.arrayContaining([
+        expect.objectContaining({
+          code: DIAGNOSTIC_CODES.unsupportedSlideElement,
+          part: 'ppt/slides/slide1.xml',
+          slideIndex: 0,
+          elementId: 'element-9',
+        }),
+      ]),
+    )
+  })
+
+  it('attaches part, slideIndex, and elementId to diagnostics when available', async () => {
+    const zip = new JSZip()
+    zip.file(
+      '[Content_Types].xml',
+      `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
+  <Override PartName="/ppt/presentation.xml" ContentType="application/vnd.openxmlformats-officedocument.presentationml.presentation.main+xml"/>
+</Types>`,
+    )
+    zip.file(
+      'ppt/presentation.xml',
+      `<p:presentation xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
+  <p:sldMasterIdLst><p:sldMasterId id="2147483648" r:id="rIdMaster1"/></p:sldMasterIdLst>
+  <p:sldIdLst><p:sldId id="256" r:id="rId1"/></p:sldIdLst>
+</p:presentation>`,
+    )
+    zip.file(
+      'ppt/_rels/presentation.xml.rels',
+      `<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rIdMaster1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/slideMaster" Target="slideMasters/slideMaster1.xml"/>
+  <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/slide" Target="slides/slide1.xml"/>
+</Relationships>`,
+    )
+    zip.file(
+      'ppt/slideMasters/slideMaster1.xml',
+      `<p:sldMaster xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main">
+  <p:cSld name="Master 1"><p:spTree><p:nvGrpSpPr/><p:grpSpPr/></p:spTree></p:cSld>
+</p:sldMaster>`,
+    )
+    zip.file(
+      'ppt/slides/slide1.xml',
+      `<p:sld xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main" xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main">
+  <p:cSld><p:spTree>
+    <p:nvGrpSpPr/><p:grpSpPr/>
+    <p:pic><p:nvPicPr><p:cNvPr id="3" name="Picture"/></p:nvPicPr></p:pic>
+    <p:graphicFrame/>
+  </p:spTree></p:cSld>
+</p:sld>`,
+    )
+
+    const input = await zip.generateAsync({ type: 'arraybuffer' })
+    const result = await parsePptx(input)
+
+    expect(result.presentation?.width).toBe(1280)
+    expect(result.presentation?.height).toBe(720)
+    expect(result.diagnostics).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          code: DIAGNOSTIC_CODES.slideSizeNotFound,
+          part: 'ppt/presentation.xml',
+        }),
+        expect.objectContaining({
+          code: DIAGNOSTIC_CODES.imageRelationshipNotFound,
+          part: 'ppt/slides/slide1.xml',
+          slideIndex: 0,
+          elementId: 'element-1',
+        }),
+        expect.objectContaining({
+          code: DIAGNOSTIC_CODES.unsupportedSlideElement,
+          part: 'ppt/slides/slide1.xml',
+          slideIndex: 0,
+          elementId: 'element-2',
+        }),
+      ]),
+    )
+  })
+
+  it('preserves diagnostics when presentation.xml is missing', async () => {
+    const zip = new JSZip()
+    zip.file(
+      '[Content_Types].xml',
+      `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
+  <Override PartName="/ppt/presentation.xml" ContentType="application/vnd.openxmlformats-officedocument.presentationml.presentation.main+xml"/>
+</Types>`,
+    )
+
+    const input = await zip.generateAsync({ type: 'arraybuffer' })
+    const result = await parsePptx(input)
+
+    expect(result.presentation).toBeNull()
+    expect(result.diagnostics).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          code: DIAGNOSTIC_CODES.presentationNotFound,
+          part: 'ppt/presentation.xml',
+        }),
+      ]),
+    )
+  })
+
+  it('adds element context when image relationship cannot be resolved', async () => {
+    const zip = new JSZip()
+    zip.file(
+      '[Content_Types].xml',
+      `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
+  <Override PartName="/ppt/presentation.xml" ContentType="application/vnd.openxmlformats-officedocument.presentationml.presentation.main+xml"/>
+</Types>`,
+    )
+    zip.file(
+      'ppt/presentation.xml',
+      `<p:presentation xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
+  <p:sldMasterIdLst><p:sldMasterId id="2147483648" r:id="rIdMaster1"/></p:sldMasterIdLst>
+  <p:sldSz cx="9144000" cy="5143500"/>
+  <p:sldIdLst><p:sldId id="256" r:id="rId1"/></p:sldIdLst>
+</p:presentation>`,
+    )
+    zip.file(
+      'ppt/_rels/presentation.xml.rels',
+      `<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rIdMaster1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/slideMaster" Target="slideMasters/slideMaster1.xml"/>
+  <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/slide" Target="slides/slide1.xml"/>
+</Relationships>`,
+    )
+    zip.file(
+      'ppt/slideMasters/slideMaster1.xml',
+      `<p:sldMaster xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main">
+  <p:cSld name="Master 1"><p:spTree><p:nvGrpSpPr/><p:grpSpPr/></p:spTree></p:cSld>
+</p:sldMaster>`,
+    )
+    zip.file(
+      'ppt/slides/slide1.xml',
+      `<p:sld xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main" xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
+  <p:cSld><p:spTree>
+    <p:nvGrpSpPr/><p:grpSpPr/>
+    <p:pic><p:nvPicPr><p:cNvPr id="3" name="Broken Picture"/></p:nvPicPr><p:blipFill><a:blip r:embed="rIdMissing"/></p:blipFill></p:pic>
+  </p:spTree></p:cSld>
+</p:sld>`,
+    )
+    zip.file(
+      'ppt/slides/_rels/slide1.xml.rels',
+      `<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rIdLayoutSlide1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/slideLayout" Target="../slideLayouts/slideLayout1.xml"/>
+</Relationships>`,
+    )
+
+    const input = await zip.generateAsync({ type: 'arraybuffer' })
+    const result = await parsePptx(input)
+
+    expect(result.diagnostics).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          code: DIAGNOSTIC_CODES.relationshipNotFound,
+          part: 'ppt/slides/slide1.xml',
+          message: 'Relationship 不存在：rIdMissing',
+        }),
+        expect.objectContaining({
+          code: DIAGNOSTIC_CODES.imageRelationshipResolveFailed,
+          part: 'ppt/slides/slide1.xml',
+          slideIndex: 0,
+          elementId: 'element-1',
+        }),
+      ]),
+    )
+    expect(result.presentation?.slides[0]?.elements[0]).toEqual(
+      expect.objectContaining({
+        type: 'image',
+        relationshipId: 'rIdMissing',
+        diagnostics: [
+          expect.objectContaining({
+            code: DIAGNOSTIC_CODES.imageRelationshipResolveFailed,
+            slideIndex: 0,
+            elementId: 'element-1',
+          }),
+        ],
+      }),
+    )
+  })
+
+  it('parses richer text runs and paragraph styles', async () => {
+    const zip = new JSZip()
+    zip.file(
+      '[Content_Types].xml',
+      `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
+  <Override PartName="/ppt/presentation.xml" ContentType="application/vnd.openxmlformats-officedocument.presentationml.presentation.main+xml"/>
+</Types>`,
+    )
+    zip.file(
+      'ppt/presentation.xml',
+      `<p:presentation xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
+  <p:sldMasterIdLst><p:sldMasterId id="2147483648" r:id="rIdMaster1"/></p:sldMasterIdLst>
+  <p:sldSz cx="9144000" cy="5143500"/>
+  <p:sldIdLst><p:sldId id="256" r:id="rId1"/></p:sldIdLst>
+</p:presentation>`,
+    )
+    zip.file(
+      'ppt/_rels/presentation.xml.rels',
+      `<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rIdMaster1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/slideMaster" Target="slideMasters/slideMaster1.xml"/>
+  <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/slide" Target="slides/slide1.xml"/>
+</Relationships>`,
+    )
+    zip.file(
+      'ppt/slideMasters/slideMaster1.xml',
+      `<p:sldMaster xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main">
+  <p:cSld name="Master 1"><p:spTree><p:nvGrpSpPr/><p:grpSpPr/></p:spTree></p:cSld>
+</p:sldMaster>`,
+    )
+    zip.file(
+      'ppt/slideMasters/_rels/slideMaster1.xml.rels',
+      `<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rIdTheme1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/theme" Target="../theme/theme1.xml"/>
+</Relationships>`,
+    )
+    zip.file(
+      'ppt/theme/theme1.xml',
+      `<a:theme xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" name="Office Theme">
+  <a:themeElements>
+    <a:clrScheme name="Office">
+      <a:dk1><a:srgbClr val="000000"/></a:dk1>
+      <a:lt1><a:srgbClr val="FFFFFF"/></a:lt1>
+      <a:dk2><a:srgbClr val="1F2937"/></a:dk2>
+      <a:lt2><a:srgbClr val="F9FAFB"/></a:lt2>
+      <a:accent1><a:srgbClr val="3486F7"/></a:accent1>
+      <a:accent2><a:srgbClr val="22C55E"/></a:accent2>
+      <a:accent3><a:srgbClr val="A855F7"/></a:accent3>
+      <a:accent4><a:srgbClr val="F97316"/></a:accent4>
+      <a:accent5><a:srgbClr val="0EA5E9"/></a:accent5>
+      <a:accent6><a:srgbClr val="EF4444"/></a:accent6>
+      <a:hlink><a:srgbClr val="2563EB"/></a:hlink>
+      <a:folHlink><a:srgbClr val="7C3AED"/></a:folHlink>
+    </a:clrScheme>
+  </a:themeElements>
+</a:theme>`,
+    )
+    zip.file(
+      'ppt/slides/slide1.xml',
+      `<p:sld xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main" xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main">
+  <p:cSld><p:spTree>
+    <p:nvGrpSpPr/><p:grpSpPr/>
+    <p:sp>
+      <p:nvSpPr><p:cNvPr id="2" name="Rich Text"/></p:nvSpPr>
+      <p:spPr><a:xfrm><a:off x="914400" y="914400"/><a:ext cx="3657600" cy="1828800"/></a:xfrm></p:spPr>
+      <p:txBody>
+        <a:bodyPr/>
+        <a:p>
+          <a:pPr algn="ctr" lvl="1" marL="457200" marR="228600" indent="-228600" defTabSz="914400" rtl="1">
+            <a:buFont typeface="Wingdings"/>
+            <a:buClr><a:schemeClr val="accent4"/></a:buClr>
+            <a:buSzPts val="2200"/>
+            <a:buChar char="•"/>
+            <a:lnSpc><a:spcPct val="150000"/></a:lnSpc>
+            <a:spcBef><a:spcPts val="1200"/></a:spcBef>
+            <a:spcAft><a:spcPts val="600"/></a:spcAft>
+            <a:defRPr sz="1800" b="1"><a:solidFill><a:schemeClr val="accent2"/></a:solidFill><a:latin typeface="Aptos"/></a:defRPr>
+          </a:pPr>
+          <a:r>
+            <a:rPr b="1" i="1" u="sng" sz="2400"><a:solidFill><a:srgbClr val="FF6600"/></a:solidFill><a:latin typeface="Aptos Display"/></a:rPr>
+            <a:t>Hello</a:t>
+          </a:r>
+          <a:tab/>
+          <a:br/>
+          <a:fld id="{42}" type="slidenum">
+            <a:rPr sz="2000"><a:solidFill><a:srgbClr val="00AA55"/></a:solidFill></a:rPr>
+            <a:t>42</a:t>
+          </a:fld>
+        </a:p>
+        <a:p>
+          <a:pPr>
+            <a:buFont typeface="Courier New"/>
+            <a:buClr><a:srgbClr val="3366FF"/></a:buClr>
+            <a:buSzPct val="125000"/>
+            <a:buAutoNum type="arabicPeriod" startAt="3"/>
+          </a:pPr>
+          <a:r><a:t>Second line</a:t></a:r>
+        </a:p>
+        <a:p>
+          <a:pPr>
+            <a:buFont typeface="Symbol"/>
+            <a:buClr><a:schemeClr val="accent6"/></a:buClr>
+            <a:buSzTx/>
+            <a:buNone/>
+          </a:pPr>
+          <a:r><a:t>Third line</a:t></a:r>
+        </a:p>
+      </p:txBody>
+    </p:sp>
+  </p:spTree></p:cSld>
+</p:sld>`,
+    )
+
+    const input = await zip.generateAsync({ type: 'arraybuffer' })
+    const result = await parsePptx(input)
+    const textElement = result.presentation?.slides[0]?.elements[0]
+
+    expect(textElement).toEqual(
+      expect.objectContaining({
+        type: 'text',
+        text: 'Hello\t\n42\nSecond line\nThird line',
+        textBody: {
+          paragraphs: [
+            {
+              text: 'Hello\t\n42',
+              style: {
+                align: 'ctr',
+                level: 1,
+                marginLeft: 457200,
+                marginRight: 228600,
+                indent: -228600,
+                defaultTabSize: 914400,
+                rtl: true,
+                bullet: {
+                  type: 'character',
+                  character: '•',
+                  fontFace: 'Wingdings',
+                  color: '#F97316',
+                  fontSize: 2200,
+                },
+                lineSpacing: {
+                  percent: 150000,
+                },
+                spaceBefore: {
+                  points: 1200,
+                },
+                spaceAfter: {
+                  points: 600,
+                },
+                defaultRunStyle: {
+                  bold: true,
+                  fontSize: 1800,
+                  color: '#22C55E',
+                  fontFace: 'Aptos',
+                },
+              },
+              runs: [
+                {
+                  text: 'Hello',
+                  style: {
+                    bold: true,
+                    italic: true,
+                    underline: 'sng',
+                    fontSize: 2400,
+                    color: '#FF6600',
+                    fontFace: 'Aptos Display',
+                  },
+                },
+                {
+                  text: '\t',
+                  style: {
+                    bold: true,
+                    fontSize: 1800,
+                    color: '#22C55E',
+                    fontFace: 'Aptos',
+                  },
+                },
+                { text: '\n' },
+                {
+                  text: '42',
+                  style: {
+                    bold: true,
+                    fontSize: 2000,
+                    color: '#00AA55',
+                    fontFace: 'Aptos',
+                  },
+                },
+              ],
+            },
+            {
+              text: 'Second line',
+              style: {
+                bullet: {
+                  type: 'auto-number',
+                  autoNumberScheme: 'arabicPeriod',
+                  autoNumberStartAt: 3,
+                  fontFace: 'Courier New',
+                  color: '#3366FF',
+                  fontSize: 125000,
+                },
+              },
+              runs: [{ text: 'Second line' }],
+            },
+            {
+              text: 'Third line',
+              style: {
+                bullet: {
+                  type: 'none',
+                  fontFace: 'Symbol',
+                  color: '#EF4444',
+                  fontSize: 0,
+                },
+              },
+              runs: [{ text: 'Third line' }],
+            },
+          ],
+        },
+      }),
     )
   })
 })

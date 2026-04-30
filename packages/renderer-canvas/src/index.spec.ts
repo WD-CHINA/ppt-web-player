@@ -10,6 +10,100 @@ describe('renderSlideToCanvas', () => {
     nodeName: 'p:sp',
   }
 
+  it('draws image backgrounds before slide elements', () => {
+    const operations: string[] = []
+    const context = createMockContext(operations)
+    const bitmap = { width: 200, height: 100 } as CanvasImageSource
+    const slide: Slide = {
+      id: 'slide-image-background',
+      index: 0,
+      part: '/ppt/slides/slide-image-background.xml',
+      relationshipId: 'rIdImageBackground',
+      background: {
+        type: 'image',
+        fill: {
+          relationshipId: 'rIdBg',
+          imagePart: 'ppt/media/background.png',
+          crop: { left: 0.1, top: 0.2, right: 0.3, bottom: 0.1 },
+          opacity: 0.5,
+          isExternal: false,
+        },
+      },
+      elements: [
+        {
+          id: 'shape-1',
+          index: 0,
+          type: 'shape',
+          slidePart: '/ppt/slides/slide-image-background.xml',
+          source,
+          visible: true,
+          opacity: 1,
+          zIndex: 0,
+          transform: { x: 10, y: 20, width: 120, height: 80 },
+          fill: { type: 'solid', color: '#22c55e' },
+        },
+      ],
+      diagnostics: [],
+    }
+
+    renderSlideToCanvas({
+      presentation: { width: 960, height: 540 },
+      slide,
+      context,
+      mediaBitmaps: { 'ppt/media/background.png': bitmap },
+      clear: false,
+    })
+
+    const backgroundIndex = operations.findIndex((operation) => operation.startsWith('drawImage:20,20,120.'))
+    const elementIndex = operations.indexOf('fill:#22c55e')
+
+    expect(operations).toContain('globalAlpha:0.5')
+    expect(backgroundIndex).toBeGreaterThan(-1)
+    expect(elementIndex).toBeGreaterThan(backgroundIndex)
+  })
+
+  it('draws cropped images with source and destination rectangles', () => {
+    const operations: string[] = []
+    const context = createMockContext(operations)
+    const bitmap = { width: 200, height: 100 } as CanvasImageSource
+    const slide: Slide = {
+      id: 'slide-image-crop',
+      index: 0,
+      part: '/ppt/slides/slide-image-crop.xml',
+      relationshipId: 'rIdImageCrop',
+      background: undefined,
+      elements: [
+        {
+          id: 'image-crop',
+          index: 0,
+          type: 'image',
+          slidePart: '/ppt/slides/slide-image-crop.xml',
+          source,
+          visible: true,
+          opacity: 1,
+          zIndex: 0,
+          transform: { x: 10, y: 20, width: 120, height: 80 },
+          relationshipId: 'rIdImage',
+          imagePart: 'ppt/media/image1.png',
+          crop: { left: 0.1, top: 0.2, right: 0.3, bottom: 0.1 },
+          image: { part: 'ppt/media/image1.png', isExternal: false },
+          isExternal: false,
+        },
+      ],
+      diagnostics: [],
+    }
+
+    renderSlideToCanvas({
+      presentation: { width: 960, height: 540 },
+      slide,
+      context,
+      mediaBitmaps: { 'ppt/media/image1.png': bitmap },
+      clear: false,
+    })
+
+    expect(operations.some((operation) => operation.startsWith('drawImage:20,20,120.'))).toBe(true)
+  })
+
   it('wraps long text into multiple canvas lines', () => {
     const operations: string[] = []
     const context = createMockContext(operations)
@@ -409,7 +503,7 @@ describe('renderSlideToCanvas', () => {
       index: 0,
       part: '/ppt/slides/slide1.xml',
       relationshipId: 'rId1',
-      background: { type: 'solid', color: '#ffffff', opacity: 1 },
+      background: { type: 'fill', fill: { type: 'solid', color: '#ffffff', opacity: 1 } },
       elements: [
         {
           id: 'shape-1',
@@ -570,8 +664,8 @@ function createMockContext(operations: string[]): CanvasRenderingContext2D {
     setLineDash(segments: number[]) {
       operations.push(`setLineDash:${segments.join(',')}`)
     },
-    drawImage(..._args: unknown[]) {
-      operations.push('drawImage')
+    drawImage(...args: unknown[]) {
+      operations.push(`drawImage:${args.slice(1).join(',')}`)
     },
     fillText(text: string, x: number, y: number) {
       operations.push(`fillText:${String(text)}@${x},${y}`)

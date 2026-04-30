@@ -1,0 +1,308 @@
+- generic [active] [ref=e1]:
+  - main [ref=e3]:
+    - generic [ref=e4]:
+      - paragraph [ref=e5]: PPTX Web Player · Week 3
+      - heading "企业可控 PPTX Web Player" [level=1] [ref=e6]
+      - paragraph [ref=e7]: "当前阶段已打通 PPTX 解析与 `renderer-svg` / `renderer-canvas` 静态渲染 MVP，`app` 负责上传、翻页与 diagnostics，渲染逻辑开始正式收口到独立 renderer 包。"
+    - region "解析 PPTX" [ref=e8]:
+      - heading "解析 PPTX" [level=2] [ref=e9]
+      - generic [ref=e10]:
+        - generic [ref=e11] [cursor=pointer]:
+          - generic [ref=e12]: 上传本地 PPTX
+          - button "上传本地 PPTX" [ref=e13]
+        - generic "样本文件" [ref=e14]:
+          - button "演示文稿1" [ref=e15] [cursor=pointer]
+          - button "区级平台介绍" [ref=e16] [cursor=pointer]
+          - button "Watercolor" [ref=e17] [cursor=pointer]
+          - button "Slidesgo AI Tech" [ref=e18] [cursor=pointer]
+          - button "AI Beatify" [ref=e19] [cursor=pointer]
+          - button "Math Calculus" [ref=e20] [cursor=pointer]
+          - button "Math Linear Algebra" [ref=e21] [cursor=pointer]
+          - button "Math Probability" [ref=e22] [cursor=pointer]
+          - button "Transition fixture" [ref=e23] [cursor=pointer]
+          - button "Wipe directions fixture" [ref=e24] [cursor=pointer]
+          - button "Fixture 47e66" [ref=e25] [cursor=pointer]
+          - button "Fixture 4b00" [ref=e26] [cursor=pointer]
+          - button "Fixture 83f8" [ref=e27] [cursor=pointer]
+          - button "Fixture f" [ref=e28] [cursor=pointer]
+    - generic [ref=e46]:
+      - generic [ref=e47]:
+        - paragraph [ref=e48]: 解析结果
+        - heading "演示文稿1" [level=2] [ref=e49]
+      - generic [ref=e50]:
+        - generic [ref=e51]:
+          - term [ref=e52]: 画布宽度
+          - definition [ref=e53]: 1280 px
+        - generic [ref=e54]:
+          - term [ref=e55]: 画布高度
+          - definition [ref=e56]: 720 px
+        - generic [ref=e57]:
+          - term [ref=e58]: 幻灯片数量
+          - definition [ref=e59]: "5"
+        - generic [ref=e60]:
+          - term [ref=e61]: Presentation Part
+          - definition [ref=e62]: ppt/presentation.xml
+      - generic [ref=e63]:
+        - generic [ref=e64]:
+          - 'heading "Slide #1 对照预览" [level=3] [ref=e65]'
+          - generic "Slide navigation" [ref=e66]:
+            - button "首页" [disabled] [ref=e67]
+            - button "上一页" [disabled] [ref=e68]
+            - generic [ref=e69]: 1 / 5
+            - button "下一页" [ref=e70] [cursor=pointer]
+            - button "末页" [ref=e71] [cursor=pointer]
+        - generic [ref=e72]:
+          - region "SVG Renderer" [ref=e73]:
+            - generic [ref=e74]:
+              - paragraph [ref=e75]: SVG Renderer
+              - generic [ref=e76]: 字符串拼装 · DOM 挂载
+            - img "ppt/slides/slide1.xml preview" [ref=e78]:
+              - generic [ref=e82]: ANIMATED POWERPOINT TEMPLATE
+              - generic [ref=e84]: 动态演示模板
+              - generic [ref=e86]: 已配置：页面转场、对象入场动画、自动播放节奏
+              - generic [ref=e89]: Fade
+              - generic [ref=e92]: Wipe
+              - generic [ref=e95]: Push
+              - generic [ref=e97]: 适合直接替换标题与要点，用作产品发布、项目汇报或创意提案。
+              - generic [ref=e99]: "01"
+          - region "Canvas Renderer" [ref=e100]:
+            - generic [ref=e101]:
+              - paragraph [ref=e102]: Canvas Renderer
+              - generic [ref=e103]: 2D context · 即时绘制
+      - generic [ref=e106]:
+        - heading "Slides" [level=3] [ref=e107]
+        - list [ref=e108]:
+          - listitem [ref=e109]:
+            - button "#1 ppt/slides/slide1.xml" [ref=e110] [cursor=pointer]:
+              - generic [ref=e111]: "#1"
+              - code [ref=e112]: ppt/slides/slide1.xml
+            - generic "Slide element summary" [ref=e113]:
+              - generic [ref=e114]: 文本 8
+              - generic [ref=e115]: 图片 1
+              - generic [ref=e116]: 形状 3
+              - generic [ref=e117]: 连接符 0
+              - generic [ref=e118]: 未知 0
+            - list [ref=e119]:
+              - listitem [ref=e120]:
+                - strong [ref=e121]: image
+                - code [ref=e122]: ppt/media/image1.jpeg
+              - listitem [ref=e123]:
+                - strong [ref=e124]: text
+                - generic [ref=e125]: ANIMATED POWERPOINT TEMPLATE
+              - listitem [ref=e126]:
+                - strong [ref=e127]: text
+                - generic [ref=e128]: 动态演示模板
+              - listitem [ref=e129]:
+                - strong [ref=e130]: text
+                - generic [ref=e131]: 已配置：页面转场、对象入场动画、自动播放节奏
+              - listitem [ref=e132]:
+                - strong [ref=e133]: shape
+                - code [ref=e134]: "fill #0D2545 · line #55D4FF 1px"
+              - listitem [ref=e135]:
+                - strong [ref=e136]: text
+                - generic [ref=e137]: Fade
+              - listitem [ref=e138]:
+                - strong [ref=e139]: shape
+                - code [ref=e140]: "fill #0D2545 · line #55D4FF 1px"
+              - listitem [ref=e141]:
+                - strong [ref=e142]: text
+                - generic [ref=e143]: Wipe
+              - listitem [ref=e144]:
+                - strong [ref=e145]: shape
+                - code [ref=e146]: "fill #0D2545 · line #55D4FF 1px"
+              - listitem [ref=e147]:
+                - strong [ref=e148]: text
+                - generic [ref=e149]: Push
+              - listitem [ref=e150]:
+                - strong [ref=e151]: text
+                - generic [ref=e152]: 适合直接替换标题与要点，用作产品发布、项目汇报或创意提案。
+              - listitem [ref=e153]:
+                - strong [ref=e154]: text
+                - generic [ref=e155]: "01"
+          - listitem [ref=e156]:
+            - button "#2 ppt/slides/slide2.xml" [ref=e157] [cursor=pointer]:
+              - generic [ref=e158]: "#2"
+              - code [ref=e159]: ppt/slides/slide2.xml
+            - generic "Slide element summary" [ref=e160]:
+              - generic [ref=e161]: 文本 13
+              - generic [ref=e162]: 图片 1
+              - generic [ref=e163]: 形状 3
+              - generic [ref=e164]: 连接符 0
+              - generic [ref=e165]: 未知 0
+            - list [ref=e166]:
+              - listitem [ref=e167]:
+                - strong [ref=e168]: image
+                - code [ref=e169]: ppt/media/image2.jpeg
+              - listitem [ref=e170]:
+                - strong [ref=e171]: text
+                - generic [ref=e172]: 01 · VISUAL RHYTHM
+              - listitem [ref=e173]:
+                - strong [ref=e174]: text
+                - generic [ref=e175]: 让内容按节奏出现
+              - listitem [ref=e176]:
+                - strong [ref=e177]: text
+                - generic [ref=e178]: 每个要点采用“逐条淡入”，观众注意力随讲述向前移动。
+              - listitem [ref=e179]:
+                - strong [ref=e180]: shape
+                - code [ref=e181]: "fill #4BE3FF · line #FFFFFF 1px"
+              - listitem [ref=e182]:
+                - strong [ref=e183]: text
+                - generic [ref=e184]: "01"
+              - listitem [ref=e185]:
+                - strong [ref=e186]: text
+                - generic [ref=e187]: 背景先稳定场景
+              - listitem [ref=e188]:
+                - strong [ref=e189]: text
+                - generic [ref=e190]: 进入时已经有氛围，不需要额外解释。
+              - listitem [ref=e191]:
+                - strong [ref=e192]: shape
+                - code [ref=e193]: "fill #4BE3FF · line #FFFFFF 1px"
+              - listitem [ref=e194]:
+                - strong [ref=e195]: text
+                - generic [ref=e196]: "02"
+              - listitem [ref=e197]:
+                - strong [ref=e198]: text
+                - generic [ref=e199]: 标题先入场
+              - listitem [ref=e200]:
+                - strong [ref=e201]: text
+                - generic [ref=e202]: 用 0.6 秒建立本页主题。
+              - listitem [ref=e203]:
+                - strong [ref=e204]: shape
+                - code [ref=e205]: "fill #4BE3FF · line #FFFFFF 1px"
+              - listitem [ref=e206]:
+                - strong [ref=e207]: text
+                - generic [ref=e208]: "03"
+              - listitem [ref=e209]:
+                - strong [ref=e210]: text
+                - generic [ref=e211]: 要点阶梯出现
+              - listitem [ref=e212]:
+                - strong [ref=e213]: text
+                - generic [ref=e214]: 每条延迟 0.25 秒，形成自然节奏。
+              - listitem [ref=e215]:
+                - strong [ref=e216]: text
+                - generic [ref=e217]: "02"
+          - listitem [ref=e218]:
+            - button "#3 ppt/slides/slide3.xml" [ref=e219] [cursor=pointer]:
+              - generic [ref=e220]: "#3"
+              - code [ref=e221]: ppt/slides/slide3.xml
+            - generic "Slide element summary" [ref=e222]:
+              - generic [ref=e223]: 文本 10
+              - generic [ref=e224]: 图片 1
+              - generic [ref=e225]: 形状 3
+              - generic [ref=e226]: 连接符 0
+              - generic [ref=e227]: 未知 0
+            - list [ref=e228]:
+              - listitem [ref=e229]:
+                - strong [ref=e230]: image
+                - code [ref=e231]: ppt/media/image3.jpeg
+              - listitem [ref=e232]:
+                - strong [ref=e233]: text
+                - generic [ref=e234]: 02 · STORY PATH
+              - listitem [ref=e235]:
+                - strong [ref=e236]: text
+                - generic [ref=e237]: 信息路径更清晰
+              - listitem [ref=e238]:
+                - strong [ref=e239]: text
+                - generic [ref=e240]: 用一条“发现 → 组织 → 呈现”的路径，把故事推进变得可见。
+              - listitem [ref=e241]:
+                - strong [ref=e242]: shape
+                - code [ref=e243]: "fill #041B2F · line #72F2FF 1px"
+              - listitem [ref=e244]:
+                - strong [ref=e245]: text
+                - generic [ref=e246]: 发现
+              - listitem [ref=e247]:
+                - strong [ref=e248]: text
+                - generic [ref=e249]: 输入问题与目标
+              - listitem [ref=e250]:
+                - strong [ref=e251]: shape
+                - code [ref=e252]: "fill #041B2F · line #72F2FF 1px"
+              - listitem [ref=e253]:
+                - strong [ref=e254]: text
+                - generic [ref=e255]: 组织
+              - listitem [ref=e256]:
+                - strong [ref=e257]: text
+                - generic [ref=e258]: 提炼结构与逻辑
+              - listitem [ref=e259]:
+                - strong [ref=e260]: shape
+                - code [ref=e261]: "fill #041B2F · line #72F2FF 1px"
+              - listitem [ref=e262]:
+                - strong [ref=e263]: text
+                - generic [ref=e264]: 呈现
+              - listitem [ref=e265]:
+                - strong [ref=e266]: text
+                - generic [ref=e267]: 输出可交付页面
+              - listitem [ref=e268]:
+                - strong [ref=e269]: text
+                - generic [ref=e270]: "03"
+          - listitem [ref=e271]:
+            - button "#4 ppt/slides/slide4.xml" [ref=e272] [cursor=pointer]:
+              - generic [ref=e273]: "#4"
+              - code [ref=e274]: ppt/slides/slide4.xml
+            - generic "Slide element summary" [ref=e275]:
+              - generic [ref=e276]: 文本 7
+              - generic [ref=e277]: 图片 1
+              - generic [ref=e278]: 形状 0
+              - generic [ref=e279]: 连接符 0
+              - generic [ref=e280]: 未知 0
+            - list [ref=e281]:
+              - listitem [ref=e282]:
+                - strong [ref=e283]: image
+                - code [ref=e284]: ppt/media/image4.jpeg
+              - listitem [ref=e285]:
+                - strong [ref=e286]: text
+                - generic [ref=e287]: 03 · KEY MOMENT
+              - listitem [ref=e288]:
+                - strong [ref=e289]: text
+                - generic [ref=e290]: 把结论放到高光处
+              - listitem [ref=e291]:
+                - strong [ref=e292]: text
+                - generic [ref=e293]: 页面动画应服务于重点，而不是抢走重点。
+              - listitem [ref=e294]:
+                - strong [ref=e295]: text
+                - generic [ref=e296]: 核心结论
+              - listitem [ref=e297]:
+                - strong [ref=e298]: text
+                - generic [ref=e299]: 一页只突出一个“必须被记住”的判断；其他信息围绕它展开。
+              - listitem [ref=e300]:
+                - strong [ref=e301]: text
+                - generic [ref=e302]: 推荐动画：标题淡入 → 结论浮入 → 解释延迟出现
+              - listitem [ref=e303]:
+                - strong [ref=e304]: text
+                - generic [ref=e305]: "04"
+          - listitem [ref=e306]:
+            - button "#5 ppt/slides/slide5.xml" [ref=e307] [cursor=pointer]:
+              - generic [ref=e308]: "#5"
+              - code [ref=e309]: ppt/slides/slide5.xml
+            - generic "Slide element summary" [ref=e310]:
+              - generic [ref=e311]: 文本 5
+              - generic [ref=e312]: 图片 1
+              - generic [ref=e313]: 形状 0
+              - generic [ref=e314]: 连接符 0
+              - generic [ref=e315]: 未知 0
+            - list [ref=e316]:
+              - listitem [ref=e317]:
+                - strong [ref=e318]: image
+                - code [ref=e319]: ppt/media/image5.jpeg
+              - listitem [ref=e320]:
+                - strong [ref=e321]: text
+                - generic [ref=e322]: READY TO PRESENT
+              - listitem [ref=e323]:
+                - strong [ref=e324]: text
+                - generic [ref=e325]: 谢谢观看
+              - listitem [ref=e326]:
+                - strong [ref=e327]: text
+                - generic [ref=e328]: 你可以直接替换文本、图片与配色，动画和转场会保留。
+              - listitem [ref=e329]:
+                - strong [ref=e330]: text
+                - generic [ref=e331]: 提示：放映时每页都有转场，页内对象按顺序入场。
+              - listitem [ref=e332]:
+                - strong [ref=e333]: text
+                - generic [ref=e334]: "05"
+    - generic [ref=e31]:
+      - heading "Diagnostics" [level=2] [ref=e32]
+      - paragraph [ref=e33]: 暂无 diagnostics。
+  - generic [ref=e34]:
+    - generic "Toggle devtools panel" [ref=e35] [cursor=pointer]:
+      - img [ref=e36]
+    - generic "Toggle Component Inspector" [ref=e41] [cursor=pointer]:
+      - img [ref=e42]

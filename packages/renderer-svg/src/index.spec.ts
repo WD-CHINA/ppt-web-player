@@ -10,6 +10,91 @@ describe('renderSlideToSvg', () => {
     nodeName: 'p:sp',
   }
 
+  it('renders image backgrounds before slide elements', () => {
+    const slide: Slide = {
+      id: 'slide-image-background',
+      index: 0,
+      part: '/ppt/slides/slide-image-background.xml',
+      relationshipId: 'rIdImageBackground',
+      background: {
+        type: 'image',
+        fill: {
+          relationshipId: 'rIdBg',
+          imagePart: 'ppt/media/background.png',
+          crop: { left: 0.1, top: 0.2, right: 0.3, bottom: 0.1 },
+          opacity: 0.5,
+          isExternal: false,
+        },
+      },
+      elements: [
+        {
+          id: 'shape-1',
+          index: 0,
+          type: 'shape',
+          slidePart: '/ppt/slides/slide-image-background.xml',
+          source,
+          visible: true,
+          opacity: 1,
+          zIndex: 0,
+          transform: { x: 10, y: 20, width: 120, height: 80 },
+          fill: { type: 'solid', color: '#22c55e' },
+        },
+      ],
+      diagnostics: [],
+    }
+
+    const svg = renderSlideToSvg({
+      presentation: { width: 960, height: 540 },
+      slide,
+      mediaUrls: { 'ppt/media/background.png': 'blob:background' },
+    })
+
+    const backgroundIndex = svg.indexOf('<g opacity="0.5"><svg x="0" y="0" width="960" height="540" viewBox="0.1 0.2 0.6000000000000001 0.7000000000000001" preserveAspectRatio="none">')
+    const elementIndex = svg.indexOf('<rect x="10" y="20" width="120" height="80"')
+
+    expect(backgroundIndex).toBeGreaterThan(-1)
+    expect(elementIndex).toBeGreaterThan(backgroundIndex)
+    expect(svg).toContain('<image x="0" y="0" width="1" height="1" href="blob:background" preserveAspectRatio="none" />')
+  })
+
+  it('renders cropped images with a normalized viewBox', () => {
+    const slide: Slide = {
+      id: 'slide-image-crop',
+      index: 0,
+      part: '/ppt/slides/slide-image-crop.xml',
+      relationshipId: 'rIdImageCrop',
+      background: undefined,
+      elements: [
+        {
+          id: 'image-crop',
+          index: 0,
+          type: 'image',
+          slidePart: '/ppt/slides/slide-image-crop.xml',
+          source,
+          visible: true,
+          opacity: 1,
+          zIndex: 0,
+          transform: { x: 10, y: 20, width: 120, height: 80 },
+          relationshipId: 'rIdImage',
+          imagePart: 'ppt/media/image1.png',
+          crop: { left: 0.1, top: 0.2, right: 0.3, bottom: 0.1 },
+          image: { part: 'ppt/media/image1.png', isExternal: false },
+          isExternal: false,
+        },
+      ],
+      diagnostics: [],
+    }
+
+    const svg = renderSlideToSvg({
+      presentation: { width: 960, height: 540 },
+      slide,
+      mediaUrls: { 'ppt/media/image1.png': 'blob:image1' },
+    })
+
+    expect(svg).toContain('<svg x="10" y="20" width="120" height="80" viewBox="0.1 0.2 0.6000000000000001 0.7000000000000001" preserveAspectRatio="none">')
+    expect(svg).toContain('<image x="0" y="0" width="1" height="1" href="blob:image1" preserveAspectRatio="none" />')
+  })
+
   it('wraps long text into multiple svg lines', () => {
     const element: TextElement = {
       id: 'text-wrap',
@@ -150,7 +235,7 @@ describe('renderSlideToSvg', () => {
       relationshipId: 'rId1',
       layoutPart: '/ppt/slideLayouts/slideLayout1.xml',
       masterPart: '/ppt/slideMasters/slideMaster1.xml',
-      background: { type: 'solid', color: '#ffffff', opacity: 1 },
+      background: { type: 'fill', fill: { type: 'solid', color: '#ffffff', opacity: 1 } },
       elements: [element],
       diagnostics: [],
     }
@@ -465,8 +550,8 @@ describe('renderSlideToSvg', () => {
       slide,
     })
 
-    expect(svg).toContain('<tspan x="38" y="66">')
-    expect(svg).toContain('<tspan x="74" y="93">')
-    expect(svg).toContain('<tspan x="38" y="148">')
+    expect(svg).toContain('<tspan x="38" y="54">')
+    expect(svg).toContain('<tspan x="74" y="81">')
+    expect(svg).toContain('<tspan x="38" y="116">')
   })
 })

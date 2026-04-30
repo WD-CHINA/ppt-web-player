@@ -1,16 +1,25 @@
 import { parseFill } from '../drawing/Fill'
 import { parseLine } from '../drawing/Line'
+import type { Diagnostic } from '../../diagnostics/Diagnostic'
 import type { PlaceholderStyle, PresentationTheme, SlideStyleDefaults } from '../../model/Presentation'
+import type { PptxPackage } from '../../package/PptxPackage'
 import type { XmlNode } from '../../xml/XmlNode'
 import * as xml from '../../xml/XmlQuery'
+import { parseSlideBackground } from './parseSlideBackground'
 import { parseTextBodyDefaults } from './parseTextBody'
 
-export function parseSlideStyleDefaults(root: XmlNode | null | undefined, theme?: PresentationTheme): SlideStyleDefaults | undefined {
+export async function parseSlideStyleDefaults(
+  pptx: PptxPackage,
+  part: string,
+  root: XmlNode | null | undefined,
+  diagnostics: Diagnostic[],
+  theme?: PresentationTheme,
+): Promise<SlideStyleDefaults | undefined> {
   if (!root) {
     return undefined
   }
 
-  const background = parseBackground(root, theme)
+  const background = await parseSlideBackground({ pptx, part, root, diagnostics, theme })
   const placeholders = xml
     .children(xml.path(root, ['p:cSld', 'p:spTree']), 'p:sp')
     .map((shape) => parsePlaceholderStyle(shape, theme))
@@ -24,12 +33,6 @@ export function parseSlideStyleDefaults(root: XmlNode | null | undefined, theme?
     ...(background ? { background } : {}),
     placeholders,
   }
-}
-
-function parseBackground(root: XmlNode, theme?: PresentationTheme) {
-  const background = xml.path(root, ['p:cSld', 'p:bg'])
-
-  return background ? parseFill(background, theme) : undefined
 }
 
 export function parsePlaceholderMetadata(node: XmlNode): Pick<PlaceholderStyle, 'type' | 'index'> | undefined {

@@ -227,6 +227,71 @@ placeholder 文本样式常落在 layout/master 的 `p:txBody/a:lstStyle/a:lvlNp
 - `packages/core/src/ooxml/presentation/parseTextBody.ts`
 - `packages/core/src/__tests__/parsePptx.spec.ts`
 
+## text body properties 先进入 core，再由 layout 消费
+
+### 现象
+
+文本框内容看起来贴边、不会按 PPT 的 `wrap="none"` 行为显示，或者自动缩放文本没有生效时，问题不应直接在 renderer 中用硬编码偏移修补。
+
+### 原因
+
+这些语义来自 `p:txBody/a:bodyPr`，属于文本容器属性，而不是 run 或 paragraph 本身：
+
+- `lIns/tIns/rIns/bIns` 控制文本框内边距
+- `wrap="none"` 禁用自动换行
+- `anchor` 控制垂直锚点语义
+- `a:noAutofit`、`a:spAutoFit`、`a:normAutofit` 控制 autoFit 策略
+
+### 解决方案
+
+当前实现把 `a:bodyPr` 解析进 `TextBody.properties`，再由 `packages/layout` 消费：
+
+- inset 在 layout 阶段转换为内容盒，影响所有 line 的 `x/y` 和可换行宽度
+- `wrap: false` 只保留显式换行，不做自动换行
+- `anchor="ctr"/"b"` 会在 layout 阶段按内容盒剩余高度把 line y 偏移到 middle/bottom；未声明 anchor 时保持 top 行为
+- `normAutofit` 在内容高度溢出时做一次受控字体缩放近似，并把最终字号写到 layout run
+- `spAutoFit` 只保留模型语义，当前不改变 shape transform
+
+这保持了边界：parser 负责表达 OOXML 语义，layout 负责排版近似，SVG/Canvas renderer 只消费 layout 结果。
+
+字号不要用统一上限截断。OOXML `sz="4400"` 表示 44pt，layout 应保留为 44px 近似输出；否则标题类文本会明显小于 WPS/PowerPoint。段前/段后 `spcPts` 使用 1/100 pt 表示，当前换算为 `value / 75`，即 96dpi 下的 pt→px 近似。
+
+### 关联文件
+
+- `packages/core/src/model/Presentation.ts`
+- `packages/core/src/ooxml/presentation/parseTextBody.ts`
+- `packages/layout/src/index.ts`
+- `packages/layout/src/index.spec.ts`
+
+## CJK 换行属于 layout 能力，不应散落到 renderer
+
+### 现象
+
+中文长句如果只按空格拆分，会整段挤在一行，最后只能依赖超长 token fallback，视觉上和 PPT 差距明显。
+
+### 原因
+
+CJK 文本天然不依赖空格分词；同时常见标点存在避首/避尾约束。如果 SVG 和 Canvas 各自实现一套换行，很容易产生后端不一致。
+
+### 解决方案
+
+当前 `layoutTextElement()` 在共享 layout 层做基础 CJK segment 拆分：
+
+- CJK 字符按字符级 segment 参与测量换行
+- Latin word、空白、标点分开处理
+- 常见闭合标点避免作为行首
+- 常见开头标点避免作为行尾
+- 超宽 segment 仍保留字符级 fallback
+
+这不是完整 Unicode Line Breaking Algorithm，但能覆盖企业 PPT 中常见中文文本框的基础换行。
+
+### 关联文件
+
+- `packages/layout/src/index.ts`
+- `packages/layout/src/index.spec.ts`
+- `packages/renderer-svg/src/index.ts`
+- `packages/renderer-canvas/src/index.ts`
+
 ## 遇到文本解析异常时的排查清单
 
 ### 现象

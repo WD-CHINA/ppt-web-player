@@ -1,0 +1,22 @@
+{
+  "sample": "Fixture 4b00",
+  "slide": 1,
+  "renderer": "svg",
+  "reference": "fixture-4b00-slide1.png",
+  "actual": "reports/visual-regression/fixture-4b00-slide-1-svg-actual.png",
+  "diff": "reports/visual-regression/fixture-4b00-slide-1-svg-diff.png",
+  "passed": true,
+  "pixelThreshold": 0.1,
+  "maxMismatchRatio": 1,
+  "mismatchedPixels": 868763,
+  "totalPixels": 921600,
+  "mismatchRatio": 0.9426681857638889,
+  "comparedWidth": 1280,
+  "comparedHeight": 720,
+  "referenceWidth": 1920,
+  "referenceHeight": 889,
+  "referenceCropWidth": 1580,
+  "referenceCropHeight": 889,
+  "actualWidth": 1280,
+  "actualHeight": 720
+}

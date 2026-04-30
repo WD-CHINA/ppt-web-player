@@ -2,10 +2,11 @@ import { parseTransform } from '../drawing/Transform'
 import { DIAGNOSTIC_CODES } from '../../diagnostics/codes'
 import { elementDiagnosticContext, pushDiagnostic } from '../../diagnostics/context'
 import type { Diagnostic } from '../../diagnostics/Diagnostic'
-import type { ImageElement } from '../../model/Presentation'
+import type { ImageCrop, ImageElement } from '../../model/Presentation'
 import type { PptxPackage } from '../../package/PptxPackage'
 import type { XmlNode } from '../../xml/XmlNode'
-import { elementId, shapeName, findFirstAttribute } from './parseShape'
+import { parseImageFill } from './parseImageFill'
+import { elementId, shapeName } from './parseShape'
 
 export async function parseImageElement(
   pptx: PptxPackage,
@@ -15,10 +16,14 @@ export async function parseImageElement(
   index: number,
   diagnostics: Diagnostic[],
 ): Promise<ImageElement> {
-  const relationshipId = findFirstAttribute(node, 'r:embed')
-  const context = elementDiagnosticContext(slidePart, slideIndex, elementId(index))
+  const imageFill = await parseImageFill(pptx, slidePart, node, diagnostics, {
+    slideIndex,
+    elementId: elementId(index),
+    missingMessage: '图片元素缺少 r:embed。',
+    externalMessage: '外部图片关系暂不加载。',
+  })
 
-  if (!relationshipId) {
+  if (!imageFill) {
     const diagnostic = pushDiagnostic(
       diagnostics,
       {
@@ -26,43 +31,22 @@ export async function parseImageElement(
         severity: 'warning',
         message: '图片元素缺少 r:embed。',
       },
-      context,
+      elementDiagnosticContext(slidePart, slideIndex, elementId(index)),
     )
 
     return createImageElement(node, index, slidePart, {
-      relationshipId: undefined,
-      imagePart: undefined,
-      isExternal: false,
-      diagnostics: [diagnostic],
-    })
-  }
-
-  const relationship = await pptx.resolveRelationship(slidePart, relationshipId)
-
-  if (!relationship) {
-    const diagnostic = pushDiagnostic(
-      diagnostics,
-      {
-        code: DIAGNOSTIC_CODES.imageRelationshipResolveFailed,
-        severity: 'warning',
-        message: `图片元素引用的 relationship 不存在：${relationshipId}`,
-        detail: { relationshipId },
-      },
-      context,
-    )
-
-    return createImageElement(node, index, slidePart, {
-      relationshipId,
-      imagePart: undefined,
       isExternal: false,
       diagnostics: [diagnostic],
     })
   }
 
   return createImageElement(node, index, slidePart, {
-    relationshipId,
-    imagePart: relationship.path,
-    isExternal: relationship.isExternal,
+    relationshipId: imageFill.relationshipId,
+    imagePart: imageFill.imagePart,
+    isExternal: imageFill.isExternal,
+    crop: imageFill.crop,
+    opacity: imageFill.opacity,
+    diagnostics: imageFill.diagnostics,
   })
 }
 
@@ -74,6 +58,8 @@ function createImageElement(
     relationshipId?: string
     imagePart?: string
     isExternal: boolean
+    crop?: ImageCrop
+    opacity?: number
     diagnostics?: Diagnostic[]
   },
 ): ImageElement {
@@ -89,10 +75,11 @@ function createImageElement(
       nodeName: node.name,
     },
     visible: true,
-    opacity: 1,
+    opacity: options.opacity ?? 1,
     zIndex: index,
     relationshipId: options.relationshipId,
     imagePart: options.imagePart,
+    crop: options.crop,
     image: {
       part: options.imagePart,
       isExternal: options.isExternal,

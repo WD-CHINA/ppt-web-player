@@ -5,6 +5,8 @@ export const DIAGNOSTIC_CODES = {
   relationshipNotFound: 'RELATIONSHIP_NOT_FOUND',
   imageRelationshipNotFound: 'IMAGE_RELATIONSHIP_NOT_FOUND',
   imageRelationshipResolveFailed: 'IMAGE_RELATIONSHIP_RESOLVE_FAILED',
+  imageCropInvalid: 'IMAGE_CROP_INVALID',
+  imageAlphaInvalid: 'IMAGE_ALPHA_INVALID',
   presentationNotFound: 'PRESENTATION_NOT_FOUND',
   slideSizeNotFound: 'SLIDE_SIZE_NOT_FOUND',
   slideListNotFound: 'SLIDE_LIST_NOT_FOUND',

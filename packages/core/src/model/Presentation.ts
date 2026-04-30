@@ -62,7 +62,7 @@ export interface SlideLayout {
 }
 
 export interface SlideStyleDefaults {
-  background?: Fill
+  background?: SlideBackground
   placeholders: PlaceholderStyle[]
 }
 
@@ -85,7 +85,7 @@ export interface Slide {
   part: string
   relationshipId: string
   name?: string
-  background?: Fill
+  background?: SlideBackground
   layoutPart?: string
   masterPart?: string
   themePart?: string
@@ -94,6 +94,26 @@ export interface Slide {
 }
 
 export type SlideElement = TextElement | ImageElement | ShapeElement | ConnectorElement | UnknownElement
+
+export type SlideBackground = FillBackground | ImageBackground
+
+export interface FillBackground {
+  type: 'fill'
+  fill: Fill
+}
+
+export interface ImageBackground {
+  type: 'image'
+  fill: ImageFill
+}
+
+export interface ImageFill {
+  relationshipId?: string
+  imagePart?: string
+  crop?: ImageCrop
+  opacity?: number
+  isExternal: boolean
+}
 
 export type Fill = SolidFill | NoFill
 
@@ -143,7 +163,24 @@ export interface ElementSource {
 
 export interface TextBody {
   paragraphs: Paragraph[]
+  properties?: TextBodyProperties
 }
+
+export interface TextBodyProperties {
+  inset?: TextInsets
+  autoFit?: TextAutoFit
+  wrap?: boolean
+  verticalAnchor?: 'top' | 'middle' | 'bottom'
+}
+
+export interface TextInsets {
+  left: number
+  top: number
+  right: number
+  bottom: number
+}
+
+export type TextAutoFit = { type: 'none' } | { type: 'shape' } | { type: 'normal'; fontScale?: number; lineSpaceReduction?: number }
 
 export interface Paragraph {
   runs: TextRun[]
@@ -218,10 +255,18 @@ export interface TextElement extends SlideElementBase {
   textBody: TextBody
 }
 
+export interface ImageCrop {
+  left: number
+  top: number
+  right: number
+  bottom: number
+}
+
 export interface ImageElement extends SlideElementBase {
   type: 'image'
   relationshipId?: string
   imagePart?: string
+  crop?: ImageCrop
   image?: {
     part?: string
     isExternal: boolean

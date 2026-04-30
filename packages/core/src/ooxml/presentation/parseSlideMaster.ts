@@ -1,3 +1,4 @@
+import type { Diagnostic } from '../../diagnostics/Diagnostic'
 import type { PresentationTheme, SlideLayout, SlideMaster } from '../../model/Presentation'
 import type { PptxPackage } from '../../package/PptxPackage'
 import * as xml from '../../xml/XmlQuery'
@@ -11,6 +12,7 @@ export async function parseSlideMaster(
   pptx: PptxPackage,
   masterPart: string,
   relationshipId: string,
+  diagnostics: Diagnostic[],
   theme?: PresentationTheme,
 ): Promise<{ master: SlideMaster; layouts: SlideLayout[] }> {
   const relationships = await pptx.getRelationships(masterPart)
@@ -36,8 +38,8 @@ export async function parseSlideMaster(
 
   const resolvedTheme = theme ?? (themePart ? await parseTheme(pptx, themePart) : undefined)
   const masterRoot = await pptx.getXml(masterPart)
-  const masterDefaults = parseSlideStyleDefaults(masterRoot, resolvedTheme)
-  const layouts = await Promise.all(layoutReferences.map((layout) => parseSlideLayout(pptx, layout, masterPart, resolvedTheme)))
+  const masterDefaults = await parseSlideStyleDefaults(pptx, masterPart, masterRoot, diagnostics, resolvedTheme)
+  const layouts = await Promise.all(layoutReferences.map((layout) => parseSlideLayout(pptx, layout, masterPart, resolvedTheme, diagnostics)))
 
   return {
     master: {
@@ -56,10 +58,11 @@ async function parseSlideLayout(
   pptx: PptxPackage,
   layout: { relationshipId: string; part: string },
   masterPart: string,
-  theme?: PresentationTheme,
+  theme: PresentationTheme | undefined,
+  diagnostics: Diagnostic[],
 ): Promise<SlideLayout> {
   const root = await pptx.getXml(layout.part)
-  const defaults = parseSlideStyleDefaults(root, theme)
+  const defaults = await parseSlideStyleDefaults(pptx, layout.part, root, diagnostics, theme)
   const name = xml.attr(root, 'name')
 
   return {

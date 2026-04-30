@@ -70,7 +70,7 @@ export async function parsePresentationReferences(
       )
     }
 
-    const parsedMaster = await parseSlideMaster(pptx, relationship.path, relationshipId)
+    const parsedMaster = await parseSlideMaster(pptx, relationship.path, relationshipId, diagnostics)
     slideMasters.push(parsedMaster.master)
     slideLayouts.push(...parsedMaster.layouts)
 

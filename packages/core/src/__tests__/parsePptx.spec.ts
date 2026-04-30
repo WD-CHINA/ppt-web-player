@@ -93,8 +93,8 @@ describe('parsePptx', () => {
       `<p:sld xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main" xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
   <p:cSld><p:bg><p:bgPr><a:solidFill><a:srgbClr val="F2F7FF"/></a:solidFill></p:bgPr></p:bg><p:spTree>
     <p:nvGrpSpPr/><p:grpSpPr/>
-    <p:sp><p:nvSpPr><p:cNvPr id="2" name="Title"/></p:nvSpPr><p:spPr><a:xfrm><a:off x="914400" y="1828800"/><a:ext cx="2743200" cy="914400"/></a:xfrm><a:ln w="38100"><a:solidFill><a:srgbClr val="111827"/></a:solidFill></a:ln></p:spPr><p:txBody><a:p><a:r><a:t>Hello PPTX</a:t></a:r></a:p></p:txBody></p:sp>
-    <p:pic><p:nvPicPr><p:cNvPr id="3" name="Picture"/></p:nvPicPr><p:blipFill><a:blip r:embed="rId2"/></p:blipFill><p:spPr><a:xfrm><a:off x="4572000" y="914400"/><a:ext cx="1828800" cy="1828800"/></a:xfrm></p:spPr></p:pic>
+    <p:sp><p:nvSpPr><p:cNvPr id="2" name="Title"/></p:nvSpPr><p:spPr><a:xfrm><a:off x="914400" y="1828800"/><a:ext cx="2743200" cy="914400"/></a:xfrm><a:ln w="38100"><a:solidFill><a:srgbClr val="111827"/></a:solidFill></a:ln></p:spPr><p:txBody><a:bodyPr lIns="91440" tIns="45720" rIns="91440" bIns="45720" wrap="none" anchor="ctr"><a:normAutofit fontScale="70000" lnSpcReduction="20000"/></a:bodyPr><a:p><a:r><a:t>Hello PPTX</a:t></a:r></a:p></p:txBody></p:sp>
+    <p:pic><p:nvPicPr><p:cNvPr id="3" name="Picture"/></p:nvPicPr><p:blipFill><a:blip r:embed="rId2"><a:alphaModFix amt="65000"/></a:blip><a:srcRect l="10000" t="20000" r="30000" b="10000"/></p:blipFill><p:spPr><a:xfrm><a:off x="4572000" y="914400"/><a:ext cx="1828800" cy="1828800"/></a:xfrm></p:spPr></p:pic>
     <p:sp><p:nvSpPr><p:cNvPr id="4" name="Accent Box"/></p:nvSpPr><p:spPr><a:xfrm><a:off x="914400" y="3657600"/><a:ext cx="1828800" cy="914400"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom><a:solidFill><a:srgbClr val="3486f7"><a:alpha val="50000"/></a:srgbClr></a:solidFill><a:ln w="76200"><a:solidFill><a:srgbClr val="EF4444"><a:alpha val="25000"/></a:srgbClr></a:solidFill><a:prstDash val="dash"/></a:ln></p:spPr></p:sp>
     <p:sp><p:nvSpPr><p:cNvPr id="8" name="Ellipse"/></p:nvSpPr><p:spPr><a:xfrm><a:off x="6400800" y="3657600"/><a:ext cx="914400" cy="914400"/></a:xfrm><a:prstGeom prst="ellipse"><a:avLst/></a:prstGeom><a:solidFill><a:srgbClr val="A855F7"/></a:solidFill></p:spPr></p:sp>
     <p:sp><p:nvSpPr><p:cNvPr id="9" name="No Fill Box"/></p:nvSpPr><p:spPr><a:xfrm><a:off x="7315200" y="3657600"/><a:ext cx="914400" cy="914400"/></a:xfrm><a:prstGeom prst="roundRect"><a:avLst/></a:prstGeom><a:noFill/><a:ln w="38100"><a:solidFill><a:srgbClr val="111827"/></a:solidFill></a:ln></p:spPr></p:sp>
@@ -163,7 +163,7 @@ describe('parsePptx', () => {
     expect(slide?.layoutPart).toBe('ppt/slideLayouts/slideLayout1.xml')
     expect(slide?.masterPart).toBe('ppt/slideMasters/slideMaster1.xml')
     expect(slide?.themePart).toBe('ppt/theme/theme1.xml')
-    expect(slide?.background).toEqual({ type: 'solid', color: '#F2F7FF' })
+    expect(slide?.background).toEqual({ type: 'fill', fill: { type: 'solid', color: '#F2F7FF' } })
     expect(elements).toEqual([
       expect.objectContaining({
         type: 'text',
@@ -177,6 +177,12 @@ describe('parsePptx', () => {
         transform: { x: 96, y: 192, width: 288, height: 96 },
         line: { color: '#111827', width: 4 },
         textBody: {
+          properties: {
+            inset: { left: 10, top: 5, right: 10, bottom: 5 },
+            wrap: false,
+            verticalAnchor: 'middle',
+            autoFit: { type: 'normal', fontScale: 70000, lineSpaceReduction: 20000 },
+          },
           paragraphs: [
             {
               text: 'Hello PPTX',
@@ -193,8 +199,9 @@ describe('parsePptx', () => {
         image: { part: 'ppt/media/image1.png', isExternal: false },
         source: { part: 'ppt/slides/slide1.xml', nodeName: 'p:pic' },
         visible: true,
-        opacity: 1,
+        opacity: 0.65,
         zIndex: 1,
+        crop: { left: 0.1, top: 0.2, right: 0.3, bottom: 0.1 },
         transform: { x: 480, y: 96, width: 192, height: 192 },
       }),
       expect.objectContaining({
@@ -318,6 +325,62 @@ describe('parsePptx', () => {
         }),
       ]),
     )
+  })
+
+  it('parses image slide backgrounds and collects their media', async () => {
+    const zip = new JSZip()
+    zip.file(
+      '[Content_Types].xml',
+      `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
+  <Override PartName="/ppt/presentation.xml" ContentType="application/vnd.openxmlformats-officedocument.presentationml.presentation.main+xml"/>
+</Types>`,
+    )
+    zip.file(
+      'ppt/presentation.xml',
+      `<p:presentation xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
+  <p:sldSz cx="9144000" cy="5143500"/>
+  <p:sldIdLst><p:sldId id="256" r:id="rId1"/></p:sldIdLst>
+</p:presentation>`,
+    )
+    zip.file(
+      'ppt/_rels/presentation.xml.rels',
+      `<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/slide" Target="slides/slide1.xml"/>
+</Relationships>`,
+    )
+    zip.file(
+      'ppt/slides/slide1.xml',
+      `<p:sld xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main" xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
+  <p:cSld><p:bg><p:bgPr><a:blipFill><a:blip r:embed="rIdBg"><a:alphaModFix amt="75000"/></a:blip><a:srcRect l="10000" t="20000" r="30000" b="10000"/></a:blipFill></p:bgPr></p:bg><p:spTree>
+    <p:nvGrpSpPr/><p:grpSpPr/>
+  </p:spTree></p:cSld>
+</p:sld>`,
+    )
+    zip.file(
+      'ppt/slides/_rels/slide1.xml.rels',
+      `<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rIdBg" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="../media/background.png"/>
+</Relationships>`,
+    )
+    zip.file('ppt/media/background.png', new Uint8Array([1, 2, 3]))
+
+    const input = await zip.generateAsync({ type: 'arraybuffer' })
+    const result = await parsePptx(input)
+    const background = result.presentation?.slides[0]?.background
+
+    expect(background).toEqual({
+      type: 'image',
+      fill: {
+        relationshipId: 'rIdBg',
+        imagePart: 'ppt/media/background.png',
+        isExternal: false,
+        crop: { left: 0.1, top: 0.2, right: 0.3, bottom: 0.1 },
+        opacity: 0.75,
+      },
+    })
+    expect(result.media['ppt/media/background.png']).toBeInstanceOf(Blob)
+    expect(result.media['ppt/media/background.png']?.type).toBe('image/png')
   })
 
   it('attaches part, slideIndex, and elementId to diagnostics when available', async () => {
@@ -828,7 +891,7 @@ describe('parsePptx', () => {
     const slide = result.presentation?.slides[0]
     const [title, body, direct, missing] = slide?.elements ?? []
 
-    expect(slide?.background).toEqual({ type: 'solid', color: '#0EA5E9' })
+    expect(slide?.background).toEqual({ type: 'fill', fill: { type: 'solid', color: '#0EA5E9' } })
     expect(title).toEqual(
       expect.objectContaining({
         type: 'text',

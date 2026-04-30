@@ -55,9 +55,9 @@ describe('layoutTextElement', () => {
     expect(layout?.align).toBe('left')
     expect(layout?.defaultFontSize).toBe(18)
     expect(layout?.lines).toHaveLength(3)
-    expect(layout?.lines[0]).toMatchObject({ x: 38, y: 66 })
-    expect(layout?.lines[1]).toMatchObject({ x: 74, y: 93 })
-    expect(layout?.lines[2]).toMatchObject({ x: 38, y: 148 })
+    expect(layout?.lines[0]).toMatchObject({ x: 38, y: 54 })
+    expect(layout?.lines[1]).toMatchObject({ x: 74, y: 81 })
+    expect(layout?.lines[2]).toMatchObject({ x: 38, y: 116 })
     expect(layout?.lines[0]?.runs[0]).toMatchObject({ text: '• ', style: { color: '#2563eb', fontSize: 1800 } })
     expect(layout?.lines[0]?.runs[1]).toMatchObject({ text: 'Alpha' })
     expect(layout?.lines[1]?.runs[0]).toMatchObject({ text: 'Beta' })
@@ -406,6 +406,153 @@ describe('layoutTextElement', () => {
     expect(layout?.lines[1]?.runs[0]).toMatchObject({ text: '1. ' })
     expect(layout?.lines[2]?.runs[0]).toMatchObject({ text: '2. ' })
     expect(layout?.lines[3]?.runs[0]).toMatchObject({ text: '2. ' })
+  })
+
+  it('applies text body inset before laying out lines', () => {
+    const element: TextElement = {
+      id: 'text-inset',
+      index: 0,
+      type: 'text',
+      slidePart: '/ppt/slides/slide-inset.xml',
+      source,
+      visible: true,
+      opacity: 1,
+      zIndex: 0,
+      transform: { x: 20, y: 30, width: 120, height: 80 },
+      text: 'Inset',
+      textBody: {
+        properties: { inset: { left: 12, top: 8, right: 4, bottom: 6 } },
+        paragraphs: [{ text: 'Inset', runs: [{ text: 'Inset', style: { fontSize: 1600 } }], style: { defaultRunStyle: { fontSize: 1600 } } }],
+      },
+    }
+
+    const layout = layoutTextElement(element)
+
+    expect(layout?.lines[0]).toMatchObject({ x: 32, y: 54 })
+  })
+
+  it('keeps large PPT font sizes instead of capping them', () => {
+    const element: TextElement = {
+      id: 'text-large-font',
+      index: 0,
+      type: 'text',
+      slidePart: '/ppt/slides/slide-large-font.xml',
+      source,
+      visible: true,
+      opacity: 1,
+      zIndex: 0,
+      transform: { x: 10, y: 20, width: 300, height: 120 },
+      text: 'Large title',
+      textBody: {
+        paragraphs: [{ text: 'Large title', runs: [{ text: 'Large title', style: { fontSize: 4400 } }], style: { defaultRunStyle: { fontSize: 4400 } } }],
+      },
+    }
+
+    const layout = layoutTextElement(element)
+
+    expect(layout?.defaultFontSize).toBe(44)
+    expect(layout?.lines[0]?.y).toBe(64)
+    expect(layout?.lines[0]?.runs[0]?.fontSize).toBe(44)
+  })
+
+  it('applies vertical text anchoring within the text content box', () => {
+    const element: TextElement = {
+      id: 'text-vertical-anchor',
+      index: 0,
+      type: 'text',
+      slidePart: '/ppt/slides/slide-vertical-anchor.xml',
+      source,
+      visible: true,
+      opacity: 1,
+      zIndex: 0,
+      transform: { x: 0, y: 10, width: 200, height: 100 },
+      text: 'Middle',
+      textBody: {
+        properties: { verticalAnchor: 'middle' },
+        paragraphs: [{ text: 'Middle', runs: [{ text: 'Middle', style: { fontSize: 2000 } }], style: { defaultRunStyle: { fontSize: 2000 } } }],
+      },
+    }
+
+    const layout = layoutTextElement(element)
+
+    expect(layout?.lines[0]?.y).toBe(67)
+  })
+
+  it('does not auto-wrap when bodyPr disables wrapping', () => {
+    const element: TextElement = {
+      id: 'text-nowrap',
+      index: 0,
+      type: 'text',
+      slidePart: '/ppt/slides/slide-nowrap.xml',
+      source,
+      visible: true,
+      opacity: 1,
+      zIndex: 0,
+      transform: { x: 0, y: 0, width: 24, height: 80 },
+      text: 'Alpha Beta',
+      textBody: {
+        properties: { wrap: false },
+        paragraphs: [{ text: 'Alpha Beta', runs: [{ text: 'Alpha Beta', style: { fontSize: 1600 } }], style: { defaultRunStyle: { fontSize: 1600 } } }],
+      },
+    }
+
+    const layout = layoutTextElement(element, {
+      measureText: ({ text }) => normalizeTextRunText(text).length * 8,
+    })
+
+    expect(layout?.lines).toHaveLength(1)
+    expect(layout?.lines[0]?.runs.map((run) => run.text).join('')).toBe('Alpha Beta')
+  })
+
+  it('wraps CJK text by character-like segments', () => {
+    const element: TextElement = {
+      id: 'text-cjk',
+      index: 0,
+      type: 'text',
+      slidePart: '/ppt/slides/slide-cjk.xml',
+      source,
+      visible: true,
+      opacity: 1,
+      zIndex: 0,
+      transform: { x: 0, y: 0, width: 32, height: 120 },
+      text: '企业平台介绍',
+      textBody: {
+        paragraphs: [{ text: '企业平台介绍', runs: [{ text: '企业平台介绍', style: { fontSize: 1600 } }], style: { defaultRunStyle: { fontSize: 1600 } } }],
+      },
+    }
+
+    const layout = layoutTextElement(element, {
+      measureText: ({ text }) => [...normalizeTextRunText(text)].length * 16,
+    })
+
+    expect(layout?.lines.map((line) => line.runs.map((run) => run.text).join(''))).toEqual(['企业', '平台', '介绍'])
+  })
+
+  it('shrinks normal autofit text when content exceeds the box height', () => {
+    const element: TextElement = {
+      id: 'text-autofit',
+      index: 0,
+      type: 'text',
+      slidePart: '/ppt/slides/slide-autofit.xml',
+      source,
+      visible: true,
+      opacity: 1,
+      zIndex: 0,
+      transform: { x: 0, y: 0, width: 200, height: 20 },
+      text: 'One\nTwo',
+      textBody: {
+        properties: { autoFit: { type: 'normal', fontScale: 50000 } },
+        paragraphs: [
+          { text: 'One', runs: [{ text: 'One', style: { fontSize: 2000 } }], style: { defaultRunStyle: { fontSize: 2000 } } },
+          { text: 'Two', runs: [{ text: 'Two', style: { fontSize: 2000 } }], style: { defaultRunStyle: { fontSize: 2000 } } },
+        ],
+      },
+    }
+
+    const layout = layoutTextElement(element)
+
+    expect(layout?.defaultFontSize).toBeLessThan(20)
+    expect(layout?.lines[0]?.runs[0]?.fontSize).toBeLessThan(20)
   })
 
   it('treats center-aligned paragraphs as a centered text block', () => {

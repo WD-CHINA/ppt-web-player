@@ -212,6 +212,72 @@ app 中保留：
 - `packages/renderer-svg/src/index.ts`
 - `packages/app/src/App.vue`
 
+## 图片 crop / alpha 要在 core 归一化后由 renderer 消费
+
+### 现象
+
+PPT 中裁剪过或带透明度的图片，如果 renderer 只按完整 bitmap 铺到目标框，会出现可见区域过大、透明度不对等问题。
+
+### 原因
+
+图片裁剪语义来自 `p:blipFill/a:srcRect`，透明度常来自 `a:blip/a:alphaModFix` 或 `a:alpha`。renderer 不应该读取 raw XML；如果 core 没把这些字段归一化，SVG 和 Canvas 后端都无法可靠复用。
+
+### 解决方案
+
+当前 core 将图片语义归一化到 model：
+
+- `ImageElement.crop` 使用 `0..1` 的 `left/top/right/bottom`
+- 图片 alpha 合并到元素级 `opacity`
+- 非法 crop 或 alpha 输出 `IMAGE_CROP_INVALID` / `IMAGE_ALPHA_INVALID` diagnostics，并安全降级
+
+renderer 的消费方式：
+
+- SVG 无 crop 时继续输出普通 `<image>`；有 crop 时输出嵌套 `<svg viewBox>`，用 normalized viewBox 表达裁剪源区域
+- Canvas 无 crop 时用 5 参数 `drawImage()`；有 crop 且 bitmap 尺寸可用时用 9 参数 `drawImage()` 绘制源矩形到目标矩形
+- external image 仍只做降级，不在本轮下载或跨域加载
+
+### 关联文件
+
+- `packages/core/src/model/Presentation.ts`
+- `packages/core/src/ooxml/presentation/parseImage.ts`
+- `packages/core/src/diagnostics/codes.ts`
+- `packages/renderer-svg/src/index.ts`
+- `packages/renderer-canvas/src/index.ts`
+
+## 背景图也必须从 core normalized model 进入 renderer
+
+### 现象
+
+WPS/Office 中看起来像整页底图的内容，可能不是普通 `p:pic`，而是 `p:bg/p:bgPr/a:blipFill` 背景图。如果只收集 slide elements，会出现 diagnostics 正常但页面大块背景缺失。
+
+### 原因
+
+slide background 与 shape/image element 是不同 OOXML 路径。renderer 不应该读取 raw XML，因此背景图必须先由 core 解析成 `SlideBackground`，并把本地 `imagePart` 纳入 `parsePptx().media`。
+
+### 解决方案
+
+当前 core 将背景归一化为：
+
+- solid/noFill 背景：`{ type: 'fill', fill }`
+- 图片背景：`{ type: 'image', fill: ImageFill }`
+- `ImageFill` 复用普通图片的 relationship、crop、opacity 解析
+- external 背景图只保留 relationship 并降级，不下载
+
+renderer 的消费方式：
+
+- SVG 在元素前先输出 background；图片背景按整页 transform 绘制，并复用 crop viewBox 逻辑
+- Canvas 在元素前先绘制 background；图片背景绘制到整页，并复用 cropped `drawImage()` 逻辑
+- 背景图缺 media 时回退到默认背景色
+
+### 关联文件
+
+- `packages/core/src/model/Presentation.ts`
+- `packages/core/src/ooxml/presentation/parseSlideBackground.ts`
+- `packages/core/src/ooxml/presentation/parseImageFill.ts`
+- `packages/core/src/parser/parsePptx.ts`
+- `packages/renderer-svg/src/index.ts`
+- `packages/renderer-canvas/src/index.ts`
+
 ## SVG 与 Canvas renderer 的当前能力差异
 
 ### 现象
@@ -422,6 +488,7 @@ Week 3 当前实现已经升级为真正消费 `textBody`：
 5. 列表问题看 `paragraph.style.bullet`
 6. 如果存在 diagnostics，优先理解 diagnostics 再动 renderer
 7. 只有当 core 模型正确时，再修改 renderer 实现
+8. 对照 WPS/Office 视觉结果时，使用 `pnpm visual:compare` 生成 actual / diff / report，不再只依赖人工肉眼截图判断
 
 ### 关联文件
 

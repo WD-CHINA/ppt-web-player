@@ -26,6 +26,10 @@ async function collectMedia(pptx: PptxPackage, presentation: Presentation): Prom
   const parts = new Set<string>()
 
   for (const slide of presentation.slides) {
+    if (slide.background?.type === 'image' && slide.background.fill.imagePart && !slide.background.fill.isExternal) {
+      parts.add(slide.background.fill.imagePart)
+    }
+
     for (const element of slide.elements) {
       if (element.type === 'image' && element.imagePart && !element.isExternal) {
         parts.add(element.imagePart)

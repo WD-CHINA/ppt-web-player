@@ -1,4 +1,4 @@
-import type { Fill, LineStyle, Presentation, Slide, SlideElement, TextElement, TextStyle } from '@pptx-player/core'
+import type { Fill, ImageCrop, LineStyle, Presentation, Slide, SlideBackground, SlideElement, TextElement, TextStyle, Transform } from '@pptx-player/core'
 import { layoutTextElement, normalizeTextRunText, textStyleFontSize } from '@pptx-player/layout'
 
 export const rendererCanvasPackageName = '@pptx-player/renderer-canvas'
@@ -21,14 +21,36 @@ export function renderSlideToCanvas(options: RenderSlideToCanvasOptions): void {
   }
 
   context.save()
-  context.fillStyle = solidFillColor(slide.background, '#f8fafc')
-  context.fillRect(0, 0, width, height)
+  drawSlideBackground(context, slide.background, presentation, mediaBitmaps)
 
   for (const element of slide.elements) {
     renderElement(context, element, mediaBitmaps)
   }
 
   context.restore()
+}
+
+function drawSlideBackground(
+  context: CanvasRenderingContext2D,
+  background: SlideBackground | undefined,
+  presentation: Pick<Presentation, 'width' | 'height'>,
+  mediaBitmaps: Record<string, CanvasImageSource>,
+): void {
+  if (background?.type === 'image') {
+    const bitmap = background.fill.imagePart ? mediaBitmaps[background.fill.imagePart] : undefined
+
+    if (bitmap) {
+      context.save()
+      context.globalAlpha *= background.fill.opacity ?? 1
+      drawImage(context, { x: 0, y: 0, width: presentation.width, height: presentation.height }, bitmap, background.fill.crop)
+      context.restore()
+      return
+    }
+  }
+
+  const fill = background?.type === 'fill' ? background.fill : undefined
+  context.fillStyle = solidFillColor(fill, '#f8fafc')
+  context.fillRect(0, 0, presentation.width, presentation.height)
 }
 
 function renderElement(
@@ -55,7 +77,7 @@ function renderElement(
     const bitmap = element.imagePart ? mediaBitmaps[element.imagePart] : undefined
 
     if (bitmap) {
-      context.drawImage(bitmap, transform.x, transform.y, transform.width, transform.height)
+      drawImage(context, transform, bitmap, element.crop)
     } else {
       context.fillStyle = 'rgba(56, 189, 248, 0.28)'
       context.strokeStyle = '#0284c7'
@@ -115,6 +137,60 @@ function renderElement(
   context.restore()
 }
 
+function drawImage(context: CanvasRenderingContext2D, transform: Transform | undefined, bitmap: CanvasImageSource, crop: ImageCrop | undefined): void {
+  if (!transform || !crop) {
+    context.drawImage(bitmap, transform?.x ?? 0, transform?.y ?? 0, transform?.width ?? 0, transform?.height ?? 0)
+    return
+  }
+
+  const sourceWidth = imageSourceWidth(bitmap)
+  const sourceHeight = imageSourceHeight(bitmap)
+
+  if (sourceWidth <= 0 || sourceHeight <= 0) {
+    context.drawImage(bitmap, transform.x, transform.y, transform.width, transform.height)
+    return
+  }
+
+  const sx = sourceWidth * crop.left
+  const sy = sourceHeight * crop.top
+  const sw = sourceWidth * (1 - crop.left - crop.right)
+  const sh = sourceHeight * (1 - crop.top - crop.bottom)
+
+  context.drawImage(bitmap, sx, sy, sw, sh, transform.x, transform.y, transform.width, transform.height)
+}
+
+function imageSourceWidth(source: CanvasImageSource): number {
+  if ('naturalWidth' in source) {
+    return source.naturalWidth
+  }
+
+  if ('videoWidth' in source) {
+    return source.videoWidth
+  }
+
+  if ('displayWidth' in source) {
+    return source.displayWidth
+  }
+
+  return 'width' in source && typeof source.width === 'number' ? source.width : 0
+}
+
+function imageSourceHeight(source: CanvasImageSource): number {
+  if ('naturalHeight' in source) {
+    return source.naturalHeight
+  }
+
+  if ('videoHeight' in source) {
+    return source.videoHeight
+  }
+
+  if ('displayHeight' in source) {
+    return source.displayHeight
+  }
+
+  return 'height' in source && typeof source.height === 'number' ? source.height : 0
+}
+
 function renderTextElement(context: CanvasRenderingContext2D, element: TextElement): void {
   const layout = layoutTextElement(element, {
     measureText: ({ text, style, defaultFontSize }) => {
@@ -138,7 +214,7 @@ function renderTextElement(context: CanvasRenderingContext2D, element: TextEleme
 
 function renderTextRuns(
   context: CanvasRenderingContext2D,
-  runs: Array<{ text: string; style?: TextStyle }>,
+  runs: Array<{ text: string; style?: TextStyle; fontSize?: number }>,
   x: number,
   y: number,
   defaultFontSize: number,
@@ -147,14 +223,14 @@ function renderTextRuns(
   let cursorX = x
 
   for (const [index, run] of runs.entries()) {
-    applyTextStyle(context, run.style, defaultFontSize)
+    applyTextStyle(context, run.style, run.fontSize ?? defaultFontSize)
     context.fillText(normalizeTextRunText(run.text), cursorX, y)
     cursorX += widths[index] ?? 0
   }
 }
 
-function measureRunWidth(context: CanvasRenderingContext2D, run: { text: string; style?: TextStyle }, defaultFontSize: number): number {
-  applyTextStyle(context, run.style, defaultFontSize)
+function measureRunWidth(context: CanvasRenderingContext2D, run: { text: string; style?: TextStyle; fontSize?: number }, defaultFontSize: number): number {
+  applyTextStyle(context, run.style, run.fontSize ?? defaultFontSize)
   return context.measureText(normalizeTextRunText(run.text)).width
 }
 

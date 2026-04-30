@@ -1,4 +1,4 @@
-import type { Fill, LineEndStyle, LineStyle, Presentation, Slide, SlideElement, TextElement, TextStyle } from '@pptx-player/core'
+import type { Fill, ImageCrop, LineEndStyle, LineStyle, Presentation, Slide, SlideBackground, SlideElement, TextElement, TextStyle, Transform } from '@pptx-player/core'
 import { layoutTextElement, normalizeTextRunText, textStyleFontSize } from '@pptx-player/layout'
 
 export const rendererSvgPackageName = '@pptx-player/renderer-svg'
@@ -15,16 +15,39 @@ export function renderSlideToSvg(options: RenderSlideToSvgOptions): string {
   const { presentation, slide, mediaUrls = {}, ariaLabel, className } = options
   const label = escapeAttribute(ariaLabel ?? `${slide.part} preview`)
   const classAttr = className ? ` class="${escapeAttribute(className)}"` : ''
-  const background = solidFillColor(slide.background, '#f8fafc')
   const elements = slide.elements.filter((element) => element.transform)
 
   return [
     `<svg${classAttr} role="img" aria-label="${label}" viewBox="0 0 ${presentation.width} ${presentation.height}" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">`,
     renderDefs(),
-    `<rect width="100%" height="100%" rx="12" fill="${escapeAttribute(background)}" />`,
+    renderSlideBackground(slide.background, presentation, mediaUrls),
     ...elements.map((element) => renderElement(element, mediaUrls)),
     '</svg>',
   ].join('')
+}
+
+function renderSlideBackground(
+  background: SlideBackground | undefined,
+  presentation: Pick<Presentation, 'width' | 'height'>,
+  mediaUrls: Record<string, string>,
+): string {
+  if (background?.type === 'image') {
+    const href = background.fill.imagePart ? mediaUrls[background.fill.imagePart] : undefined
+
+    if (href) {
+      const image = renderImage(
+        { x: 0, y: 0, width: presentation.width, height: presentation.height },
+        href,
+        background.fill.crop,
+        'none',
+      )
+
+      return background.fill.opacity === undefined || background.fill.opacity >= 1 ? image : `<g opacity="${background.fill.opacity}">${image}</g>`
+    }
+  }
+
+  const fill = background?.type === 'fill' ? background.fill : undefined
+  return `<rect width="100%" height="100%" rx="12" fill="${escapeAttribute(solidFillColor(fill, '#f8fafc'))}" />`
 }
 
 function renderDefs(): string {
@@ -71,7 +94,7 @@ function renderElementContent(element: SlideElement, mediaUrls: Record<string, s
     const href = element.imagePart ? mediaUrls[element.imagePart] : undefined
 
     if (href) {
-      return `<image x="${element.transform.x}" y="${element.transform.y}" width="${element.transform.width}" height="${element.transform.height}" href="${escapeAttribute(href)}" preserveAspectRatio="xMidYMid meet" />`
+      return renderImage(element.transform, href, element.crop, 'xMidYMid meet')
     }
 
     return [
@@ -98,6 +121,27 @@ function renderElementContent(element: SlideElement, mediaUrls: Record<string, s
   return `<rect x="${element.transform.x}" y="${element.transform.y}" width="${element.transform.width}" height="${element.transform.height}" fill="none" stroke="#f97316" stroke-dasharray="8 6" />`
 }
 
+function renderImage(transform: Transform | undefined, href: string, crop: ImageCrop | undefined, preserveAspectRatio: string): string {
+  if (!transform) {
+    return ''
+  }
+
+  if (!crop) {
+    return `<image x="${transform.x}" y="${transform.y}" width="${transform.width}" height="${transform.height}" href="${escapeAttribute(href)}" preserveAspectRatio="${preserveAspectRatio}" />`
+  }
+
+  const sourceX = crop.left
+  const sourceY = crop.top
+  const sourceWidth = 1 - crop.left - crop.right
+  const sourceHeight = 1 - crop.top - crop.bottom
+
+  return [
+    `<svg x="${transform.x}" y="${transform.y}" width="${transform.width}" height="${transform.height}" viewBox="${sourceX} ${sourceY} ${sourceWidth} ${sourceHeight}" preserveAspectRatio="none">`,
+    `<image x="0" y="0" width="1" height="1" href="${escapeAttribute(href)}" preserveAspectRatio="none" />`,
+    '</svg>',
+  ].join('')
+}
+
 function renderTextElement(element: TextElement): string {
   const layout = layoutTextElement(element, {
     measureText: ({ text, style, defaultFontSize }) => estimateTextWidth(text, style, defaultFontSize),
@@ -109,7 +153,7 @@ function renderTextElement(element: TextElement): string {
 
   const content = layout.lines
     .map((line) => {
-      const tspans = line.runs.map((run) => renderRunTspan(run.text, run.style, layout.defaultFontSize)).join('')
+      const tspans = line.runs.map((run) => renderRunTspan(run.text, run.style, run.fontSize ?? layout.defaultFontSize)).join('')
       return `<tspan x="${line.x}" y="${line.y}">${tspans || escapeText('')}</tspan>`
     })
     .join('')
@@ -131,12 +175,12 @@ function estimateTextWidth(text: string, style: TextStyle | undefined, defaultFo
   }, 0)
 }
 
-function renderRunTspan(text: string, style: TextStyle | undefined, defaultFontSize: number): string {
+function renderRunTspan(text: string, style: TextStyle | undefined, fontSize: number): string {
   const normalizedText = normalizeTextRunText(text)
   const attributes = [
     renderOptionalAttribute('fill', style?.color),
     renderOptionalAttribute('font-family', style?.fontFace),
-    renderOptionalAttribute('font-size', String(textStyleFontSize(style, defaultFontSize))),
+    renderOptionalAttribute('font-size', String(fontSize)),
     renderOptionalAttribute('font-weight', style?.bold ? '700' : undefined),
     renderOptionalAttribute('font-style', style?.italic ? 'italic' : undefined),
     renderOptionalAttribute('text-decoration', style?.underline ? 'underline' : undefined),

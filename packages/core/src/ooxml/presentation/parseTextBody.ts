@@ -4,6 +4,7 @@ import type {
   ParagraphStyle,
   PresentationTheme,
   TextBody,
+  TextBodyProperties,
   TextRun,
   TextSpacing,
   TextStyle,
@@ -12,6 +13,7 @@ import type {
 import type { XmlNode } from '../../xml/XmlNode'
 import * as xml from '../../xml/XmlQuery'
 import { parseDrawingColor } from '../drawing/Color'
+import { emuToPx } from '../drawing/Transform'
 
 export function parseTextBody(node: XmlNode, theme?: PresentationTheme, inheritedDefaults?: TextStyleDefaults): TextBody | undefined {
   const textBody = xml.child(node, 'p:txBody')
@@ -29,7 +31,9 @@ export function parseTextBody(node: XmlNode, theme?: PresentationTheme, inherite
     return undefined
   }
 
-  return { paragraphs }
+  const properties = parseTextBodyProperties(xml.child(textBody, 'a:bodyPr'))
+
+  return { paragraphs, ...(properties ? { properties } : {}) }
 }
 
 export function parseTextBodyDefaults(node: XmlNode, theme?: PresentationTheme): TextStyleDefaults | undefined {
@@ -61,6 +65,84 @@ export function parseTextBodyDefaults(node: XmlNode, theme?: PresentationTheme):
   }
 
   return Object.keys(paragraphs).length > 0 ? { paragraphs } : undefined
+}
+
+function parseTextBodyProperties(node: XmlNode | null): TextBodyProperties | undefined {
+  if (!node) {
+    return undefined
+  }
+
+  const inset = parseTextInsets(node)
+  const wrap = xml.attr(node, 'wrap') === 'none' ? false : undefined
+  const verticalAnchor = parseVerticalAnchor(xml.attr(node, 'anchor'))
+  const autoFit = parseTextAutoFit(node)
+  const properties: TextBodyProperties = {
+    ...(inset ? { inset } : {}),
+    ...(wrap !== undefined ? { wrap } : {}),
+    ...(verticalAnchor ? { verticalAnchor } : {}),
+    ...(autoFit ? { autoFit } : {}),
+  }
+
+  return Object.keys(properties).length > 0 ? properties : undefined
+}
+
+function parseTextInsets(node: XmlNode): TextBodyProperties['inset'] | undefined {
+  const left = parseNumber(xml.attr(node, 'lIns'))
+  const top = parseNumber(xml.attr(node, 'tIns'))
+  const right = parseNumber(xml.attr(node, 'rIns'))
+  const bottom = parseNumber(xml.attr(node, 'bIns'))
+
+  if (left === undefined && top === undefined && right === undefined && bottom === undefined) {
+    return undefined
+  }
+
+  return {
+    left: left !== undefined ? emuToPx(left) : 0,
+    top: top !== undefined ? emuToPx(top) : 0,
+    right: right !== undefined ? emuToPx(right) : 0,
+    bottom: bottom !== undefined ? emuToPx(bottom) : 0,
+  }
+}
+
+function parseVerticalAnchor(value: string | undefined): TextBodyProperties['verticalAnchor'] | undefined {
+  if (value === 'ctr') {
+    return 'middle'
+  }
+
+  if (value === 'b') {
+    return 'bottom'
+  }
+
+  if (value === 't') {
+    return 'top'
+  }
+
+  return undefined
+}
+
+function parseTextAutoFit(node: XmlNode): TextBodyProperties['autoFit'] | undefined {
+  if (xml.child(node, 'a:noAutofit')) {
+    return { type: 'none' }
+  }
+
+  if (xml.child(node, 'a:spAutoFit')) {
+    return { type: 'shape' }
+  }
+
+  const normalAutoFit = xml.child(node, 'a:normAutofit')
+
+  if (!normalAutoFit) {
+    return undefined
+  }
+
+  const fontScale = parseNumber(xml.attr(normalAutoFit, 'fontScale'))
+  const lineSpaceReduction = parseNumber(xml.attr(normalAutoFit, 'lnSpcReduction'))
+
+  return {
+    type: 'normal',
+    ...(fontScale !== undefined ? { fontScale } : {}),
+    ...(lineSpaceReduction !== undefined ? { lineSpaceReduction } : {}),
+  }
 }
 
 function parseParagraph(node: XmlNode, theme: PresentationTheme | undefined, inheritedDefaults?: TextStyleDefaults): Paragraph {

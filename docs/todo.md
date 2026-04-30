@@ -127,6 +127,10 @@
 - `app` 从“自己画预览”转向“调用 renderer”。
 - 形成 `parser -> layout -> renderer` 的正式边界。
 - renderer 测试和知识库记录覆盖 SVG/Canvas 的当前能力差异。
+- 解析/渲染增量已补齐图片裁剪、图片透明度、文本框 inset、wrap=false、基础 CJK 换行与 normal autoFit 近似缩放。
+- 图片裁剪和透明度异常会进入 structured diagnostics，renderer 继续只消费 normalized model。
+- 已新增 WPS 参考图视觉回归脚本，可对 SVG/Canvas 预览区域生成 actual、diff 和 JSON report，用于定位大块缺图、层级和样式退化。
+- slide background 已从普通 `Fill` 扩展为 `SlideBackground`，core 可解析 `p:bg/p:bgPr/a:blipFill` 图片背景，SVG/Canvas 会在元素前先绘制背景图。
 
 ## 第 4 周：补 player 最小运行时，形成 Phase 1 雏形
 

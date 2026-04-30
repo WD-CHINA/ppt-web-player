@@ -1,16 +1,16 @@
-import { parseFill } from '../drawing/Fill'
 import { DIAGNOSTIC_CODES } from '../../diagnostics/codes'
 import { pushDiagnostic, slideDiagnosticContext } from '../../diagnostics/context'
 import type { Diagnostic } from '../../diagnostics/Diagnostic'
-import type { Fill, PresentationTheme, SlideElement, SlideLayout, SlideMaster } from '../../model/Presentation'
+import type { PresentationTheme, SlideBackground, SlideElement, SlideLayout, SlideMaster } from '../../model/Presentation'
 import type { PptxPackage } from '../../package/PptxPackage'
 import type { XmlNode } from '../../xml/XmlNode'
 import * as xml from '../../xml/XmlQuery'
 import { parseImageElement } from './parseImage'
 import { createUnknownElement, parseConnectorElement, parseShapeElement } from './parseShape'
+import { parseSlideBackground } from './parseSlideBackground'
 
 export interface ParsedSlideContent {
-  background?: Fill
+  background?: SlideBackground
   elements: SlideElement[]
   diagnostics: Diagnostic[]
 }
@@ -59,7 +59,15 @@ export async function parseSlide(
     return { elements: [], diagnostics }
   }
 
-  const background = parseSlideBackground(root, parseContext)
+  const background = await parseSlideBackground({
+    pptx,
+    part: slidePart,
+    root,
+    diagnostics,
+    theme: parseContext.theme,
+    slideIndex,
+    inheritedBackground: parseContext.layout?.defaults?.background ?? parseContext.master?.defaults?.background,
+  })
   const elements: SlideElement[] = []
 
   for (const node of xml.children(shapeTree)) {
@@ -67,12 +75,6 @@ export async function parseSlide(
   }
 
   return { background, elements, diagnostics }
-}
-
-function parseSlideBackground(root: XmlNode, context: SlideParseContext): Fill | undefined {
-  const background = xml.path(root, ['p:cSld', 'p:bg'])
-
-  return background ? parseFill(background, context.theme) : (context.layout?.defaults?.background ?? context.master?.defaults?.background)
 }
 
 async function appendShapeTreeChild(

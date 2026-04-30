@@ -1,0 +1,189 @@
+- generic [ref=e1]:
+  - main [ref=e3]:
+    - generic [ref=e4]:
+      - paragraph [ref=e5]: PPTX Web Player · Phase 0
+      - heading "企业可控 PPTX Web Player" [level=1] [ref=e6]
+      - paragraph [ref=e7]: 当前阶段打通 PPTX 解包、XML 解析、relationships 解析、presentation 尺寸和 slide 列表读取。
+    - region "解析 PPTX" [ref=e8]:
+      - heading "解析 PPTX" [level=2] [ref=e9]
+      - generic [ref=e10]:
+        - generic [ref=e11] [cursor=pointer]:
+          - generic [ref=e12]: 上传本地 PPTX
+          - button "上传本地 PPTX" [ref=e13]
+        - generic "样本文件" [ref=e14]:
+          - button "演示文稿1" [ref=e15] [cursor=pointer]
+          - button "区级平台介绍" [ref=e16] [cursor=pointer]
+          - button "Watercolor" [ref=e17] [cursor=pointer]
+          - button "Slidesgo AI Tech" [ref=e18] [cursor=pointer]
+          - button "AI Beatify" [ref=e19] [cursor=pointer]
+          - button "Math Calculus" [ref=e20] [cursor=pointer]
+          - button "Math Linear Algebra" [ref=e21] [cursor=pointer]
+          - button "Math Probability" [ref=e22] [cursor=pointer]
+          - button "Transition fixture" [ref=e23] [cursor=pointer]
+          - button "Wipe directions fixture" [ref=e24] [cursor=pointer]
+          - button "Fixture 47e66" [ref=e25] [cursor=pointer]
+          - button "Fixture 4b00" [ref=e26] [cursor=pointer]
+          - button "Fixture 83f8" [ref=e27] [cursor=pointer]
+          - button "Fixture f" [ref=e28] [cursor=pointer]
+    - generic [ref=e325]:
+      - generic [ref=e326]:
+        - paragraph [ref=e327]: 解析结果
+        - heading "区级平台介绍" [level=2] [ref=e328]
+      - generic [ref=e329]:
+        - generic [ref=e330]:
+          - term [ref=e331]: 画布宽度
+          - definition [ref=e332]: 1280 px
+        - generic [ref=e333]:
+          - term [ref=e334]: 画布高度
+          - definition [ref=e335]: 720 px
+        - generic [ref=e336]:
+          - term [ref=e337]: 幻灯片数量
+          - definition [ref=e338]: "4"
+        - generic [ref=e339]:
+          - term [ref=e340]: Presentation Part
+          - definition [ref=e341]: ppt/presentation.xml
+      - generic [ref=e342]:
+        - generic [ref=e343]:
+          - 'heading "Slide #2 预览" [level=3] [ref=e486]'
+          - generic "Slide navigation" [ref=e345]:
+            - button "上一页" [active] [ref=e346] [cursor=pointer]
+            - generic [ref=e347]: 2 / 4
+            - button "下一页" [ref=e348] [cursor=pointer]
+        - img "ppt/slides/slide2.xml preview" [ref=e487]:
+          - generic [ref=e488]: 智慧体育数据——区级概览
+          - generic [ref=e354]: 区智慧体育数据
+          - generic [ref=e489]: 支持多项数据
+          - generic [ref=e491]: 测试人数覆盖学校/学生运动人次/总时长成绩合格率参与度各学校运动时长排名学校运动参与度排行各项目
+      - generic [ref=e361]:
+        - heading "Slides" [level=3] [ref=e362]
+        - list [ref=e363]:
+          - listitem [ref=e364]:
+            - button "#1 ppt/slides/slide1.xml" [ref=e365] [cursor=pointer]:
+              - generic [ref=e366]: "#1"
+              - code [ref=e367]: ppt/slides/slide1.xml
+            - generic "Slide element summary" [ref=e368]:
+              - generic [ref=e369]: 文本 2
+              - generic [ref=e370]: 图片 3
+              - generic [ref=e371]: 形状 0
+              - generic [ref=e372]: 连接符 1
+              - generic [ref=e373]: 未知 0
+            - list [ref=e374]:
+              - listitem [ref=e375]:
+                - strong [ref=e376]: image
+                - code [ref=e377]: ppt/media/image1.jpeg
+              - listitem [ref=e378]:
+                - strong [ref=e379]: text
+                - generic [ref=e380]: 区级平台介绍
+              - listitem [ref=e381]:
+                - strong [ref=e382]: image
+                - code [ref=e383]: ppt/media/image2.png
+              - listitem [ref=e384]:
+                - strong [ref=e385]: connector
+                - code [ref=e386]: line none 1px
+              - listitem [ref=e387]:
+                - strong [ref=e388]: image
+                - code [ref=e389]: ppt/media/image3.png
+              - listitem [ref=e390]:
+                - strong [ref=e391]: text
+                - generic [ref=e392]: 融梦科技
+          - listitem [ref=e393]:
+            - button "#2 ppt/slides/slide2.xml" [ref=e394] [cursor=pointer]:
+              - generic [ref=e395]: "#2"
+              - code [ref=e396]: ppt/slides/slide2.xml
+            - generic "Slide element summary" [ref=e397]:
+              - generic [ref=e398]: 文本 4
+              - generic [ref=e399]: 图片 1
+              - generic [ref=e400]: 形状 0
+              - generic [ref=e401]: 连接符 0
+              - generic [ref=e402]: 未知 0
+            - list [ref=e403]:
+              - listitem [ref=e404]:
+                - strong [ref=e405]: text
+                - generic [ref=e406]: 智慧体育数据——区级概览
+              - listitem [ref=e407]:
+                - strong [ref=e408]: text
+                - generic [ref=e409]: 区智慧体育数据
+              - listitem [ref=e410]:
+                - strong [ref=e411]: text
+                - generic [ref=e412]: 支持多项数据
+              - listitem [ref=e413]:
+                - strong [ref=e414]: text
+                - generic [ref=e415]: 测试人数覆盖学校/学生运动人次/总时长成绩合格率参与度各学校运动时长排名学校运动参与度排行各项目合格率今日运动人次
+              - listitem [ref=e416]:
+                - strong [ref=e417]: image
+                - code [ref=e418]: ppt/media/image5.png
+          - listitem [ref=e419]:
+            - button "#3 ppt/slides/slide3.xml" [ref=e420] [cursor=pointer]:
+              - generic [ref=e421]: "#3"
+              - code [ref=e422]: ppt/slides/slide3.xml
+            - generic "Slide element summary" [ref=e423]:
+              - generic [ref=e424]: 文本 2
+              - generic [ref=e425]: 图片 1
+              - generic [ref=e426]: 形状 2
+              - generic [ref=e427]: 连接符 0
+              - generic [ref=e428]: 未知 0
+            - list [ref=e429]:
+              - listitem [ref=e430]:
+                - strong [ref=e431]: image
+                - code [ref=e432]: ppt/media/image6.png
+              - listitem [ref=e433]:
+                - strong [ref=e434]: text
+                - generic [ref=e435]: 智慧体育数据——学校列表
+              - listitem [ref=e436]:
+                - strong [ref=e437]: text
+                - generic [ref=e438]: 包含学校名称、人数、运动人次、运动时长及参与度等信息
+              - listitem [ref=e439]:
+                - strong [ref=e440]: shape
+                - code [ref=e441]: "fill #C00000 · line #C00000 3px"
+              - listitem [ref=e442]:
+                - strong [ref=e443]: shape
+                - code [ref=e444]: "fill #2759B1 · line none 0px"
+          - listitem [ref=e445]:
+            - button "#4 ppt/slides/slide4.xml" [ref=e446] [cursor=pointer]:
+              - generic [ref=e447]: "#4"
+              - code [ref=e448]: ppt/slides/slide4.xml
+            - generic "Slide element summary" [ref=e449]:
+              - generic [ref=e450]: 文本 2
+              - generic [ref=e451]: 图片 5
+              - generic [ref=e452]: 形状 3
+              - generic [ref=e453]: 连接符 0
+              - generic [ref=e454]: 未知 0
+            - list [ref=e455]:
+              - listitem [ref=e456]:
+                - strong [ref=e457]: text
+                - generic [ref=e458]: 智慧体育数据——学校信息
+              - listitem [ref=e459]:
+                - strong [ref=e460]: text
+                - generic [ref=e461]: 点击查看详细数据
+              - listitem [ref=e462]:
+                - strong [ref=e463]: shape
+                - code [ref=e464]: "fill #C00000 · line #C00000 3px"
+              - listitem [ref=e465]:
+                - strong [ref=e466]: image
+                - code [ref=e467]: ppt/media/image7.png
+              - listitem [ref=e468]:
+                - strong [ref=e469]: image
+                - code [ref=e470]: ppt/media/image7.png
+              - listitem [ref=e471]:
+                - strong [ref=e472]: image
+                - code [ref=e473]: ppt/media/image8.png
+              - listitem [ref=e474]:
+                - strong [ref=e475]: shape
+                - code [ref=e476]: "fill #C00000 · line #C00000 2px"
+              - listitem [ref=e477]:
+                - strong [ref=e478]: image
+                - code [ref=e479]: ppt/media/image9.png
+              - listitem [ref=e480]:
+                - strong [ref=e481]: shape
+                - code [ref=e482]: "fill #F8F9FB · line none 0px"
+              - listitem [ref=e483]:
+                - strong [ref=e484]: image
+                - code [ref=e485]: ppt/media/image10.png
+    - generic [ref=e31]:
+      - heading "Diagnostics" [level=2] [ref=e32]
+      - paragraph [ref=e33]: 暂无 diagnostics。
+  - generic [ref=e34]:
+    - generic "Toggle devtools panel" [ref=e35] [cursor=pointer]:
+      - img [ref=e36]
+    - generic "Toggle Component Inspector" [ref=e41] [cursor=pointer]:
+      - img [ref=e42]

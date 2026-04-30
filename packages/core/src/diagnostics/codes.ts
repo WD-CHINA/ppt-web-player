@@ -12,6 +12,7 @@ export const DIAGNOSTIC_CODES = {
   slideShapeTreeNotFound: 'SLIDE_SHAPE_TREE_NOT_FOUND',
   unexpectedRelationshipType: 'UNEXPECTED_RELATIONSHIP_TYPE',
   unsupportedSlideElement: 'UNSUPPORTED_SLIDE_ELEMENT',
+  styleInheritanceIncomplete: 'STYLE_INHERITANCE_INCOMPLETE',
 } as const
 
 export type DiagnosticCode = (typeof DIAGNOSTIC_CODES)[keyof typeof DIAGNOSTIC_CODES]

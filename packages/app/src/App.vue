@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
-import { parsePptx, type Diagnostic, type Fill, type Presentation } from '@pptx-player/core'
+import { parsePptx, type Diagnostic, type DiagnosticSeverity, type Fill, type Presentation } from '@pptx-player/core'
 import { renderSlideToCanvas } from '@pptx-player/renderer-canvas'
 import { renderSlideToSvg } from '@pptx-player/renderer-svg'
 
@@ -15,6 +15,9 @@ const activeFileName = ref('')
 const activeSlideIndex = ref(0)
 const canvasHost = ref<HTMLCanvasElement | null>(null)
 const canvasBitmaps = ref<Record<string, ImageBitmap>>({})
+const diagnosticSeverityFilter = ref<DiagnosticSeverity | 'all'>('all')
+const diagnosticCodeFilter = ref('all')
+const diagnosticSlideFilter = ref('all')
 
 const hasResult = computed(() => presentation.value !== null)
 const slideCount = computed(() => presentation.value?.slides.length ?? 0)
@@ -36,6 +39,30 @@ const canGoFirstSlide = computed(() => activeSlideIndex.value > 0)
 const canGoPreviousSlide = computed(() => activeSlideIndex.value > 0)
 const canGoNextSlide = computed(() => activeSlideIndex.value < slideCount.value - 1)
 const canGoLastSlide = computed(() => activeSlideIndex.value < slideCount.value - 1)
+const diagnosticCounts = computed<Record<DiagnosticSeverity, number>>(() => ({
+  info: diagnostics.value.filter((diagnostic) => diagnostic.severity === 'info').length,
+  warning: diagnostics.value.filter((diagnostic) => diagnostic.severity === 'warning').length,
+  error: diagnostics.value.filter((diagnostic) => diagnostic.severity === 'error').length,
+}))
+const diagnosticCodes = computed(() => [...new Set(diagnostics.value.map((diagnostic) => diagnostic.code))].sort())
+const diagnosticSlideOptions = computed(() =>
+  [
+    ...new Set(
+      diagnostics.value
+        .map((diagnostic) => diagnostic.slideIndex)
+        .filter((slideIndex): slideIndex is number => slideIndex !== undefined),
+    ),
+  ].sort((left, right) => left - right),
+)
+const filteredDiagnostics = computed(() =>
+  diagnostics.value.filter((diagnostic) => {
+    const matchesSeverity = diagnosticSeverityFilter.value === 'all' || diagnostic.severity === diagnosticSeverityFilter.value
+    const matchesCode = diagnosticCodeFilter.value === 'all' || diagnostic.code === diagnosticCodeFilter.value
+    const matchesSlide = diagnosticSlideFilter.value === 'all' || String(diagnostic.slideIndex) === diagnosticSlideFilter.value
+
+    return matchesSeverity && matchesCode && matchesSlide
+  }),
+)
 
 async function parseInput(input: Blob | ArrayBuffer, fileName: string) {
   isLoading.value = true
@@ -155,6 +182,10 @@ function fillLabel(fill: Fill | undefined): string {
   }
 
   return fill.type === 'solid' ? fill.color : 'noFill'
+}
+
+function formatDiagnosticDetail(detail: unknown): string {
+  return detail === undefined ? '' : JSON.stringify(detail, null, 2)
 }
 
 function createMediaUrls(media: Record<string, Blob>): Record<string, string> {
@@ -383,14 +414,72 @@ onBeforeUnmount(() => {
     </section>
 
     <section class="diagnostics-panel">
-      <h2>Diagnostics</h2>
+      <div class="diagnostics-header">
+        <div>
+          <h2>Diagnostics</h2>
+          <p class="diagnostics-summary">
+            共 {{ diagnostics.length }} 条 · info {{ diagnosticCounts.info }} · warning {{ diagnosticCounts.warning }} · error
+            {{ diagnosticCounts.error }}
+          </p>
+        </div>
+
+        <div v-if="diagnostics.length > 0" class="diagnostics-filters" aria-label="Diagnostics filters">
+          <label>
+            Severity
+            <select v-model="diagnosticSeverityFilter">
+              <option value="all">全部</option>
+              <option value="info">info</option>
+              <option value="warning">warning</option>
+              <option value="error">error</option>
+            </select>
+          </label>
+
+          <label>
+            Code
+            <select v-model="diagnosticCodeFilter">
+              <option value="all">全部</option>
+              <option v-for="code in diagnosticCodes" :key="code" :value="code">{{ code }}</option>
+            </select>
+          </label>
+
+          <label>
+            Slide
+            <select v-model="diagnosticSlideFilter">
+              <option value="all">全部</option>
+              <option v-for="slideIndex in diagnosticSlideOptions" :key="slideIndex" :value="String(slideIndex)">
+                #{{ slideIndex + 1 }}
+              </option>
+            </select>
+          </label>
+        </div>
+      </div>
+
       <p v-if="diagnostics.length === 0" class="empty-text">暂无 diagnostics。</p>
+      <p v-else-if="filteredDiagnostics.length === 0" class="empty-text">当前过滤条件下暂无 diagnostics。</p>
       <ul v-else>
-        <li v-for="(diagnostic, index) in diagnostics" :key="`${diagnostic.code}-${index}`">
-          <strong :class="`severity-${diagnostic.severity}`">{{ diagnostic.severity }}</strong>
-          <code>{{ diagnostic.code }}</code>
-          <span>{{ diagnostic.message }}</span>
-          <small v-if="diagnostic.part">{{ diagnostic.part }}</small>
+        <li v-for="(diagnostic, index) in filteredDiagnostics" :key="`${diagnostic.code}-${diagnostic.part ?? 'global'}-${index}`">
+          <div class="diagnostic-title-row">
+            <strong :class="`severity-${diagnostic.severity}`">{{ diagnostic.severity }}</strong>
+            <code>{{ diagnostic.code }}</code>
+            <span>{{ diagnostic.message }}</span>
+          </div>
+
+          <dl class="diagnostic-context">
+            <div v-if="diagnostic.slideIndex !== undefined">
+              <dt>Slide</dt>
+              <dd>#{{ diagnostic.slideIndex + 1 }}</dd>
+            </div>
+            <div v-if="diagnostic.elementId">
+              <dt>Element</dt>
+              <dd>{{ diagnostic.elementId }}</dd>
+            </div>
+            <div v-if="diagnostic.part">
+              <dt>Part</dt>
+              <dd>{{ diagnostic.part }}</dd>
+            </div>
+          </dl>
+
+          <pre v-if="formatDiagnosticDetail(diagnostic.detail)" class="diagnostic-detail">{{ formatDiagnosticDetail(diagnostic.detail) }}</pre>
         </li>
       </ul>
     </section>
@@ -568,7 +657,10 @@ dd {
 }
 
 .preview-header,
-.slide-nav {
+.slide-nav,
+.diagnostics-header,
+.diagnostics-filters,
+.diagnostic-title-row {
   display: flex;
   flex-wrap: wrap;
   gap: 12px;
@@ -601,6 +693,88 @@ dd {
 .slide-nav span {
   color: #cbd5e1;
   font-weight: 700;
+}
+
+.diagnostics-header {
+  margin-bottom: 18px;
+}
+
+.diagnostics-header h2 {
+  margin-bottom: 8px;
+}
+
+.diagnostics-summary {
+  margin-bottom: 0;
+  color: #cbd5e1;
+  font-size: 14px;
+}
+
+.diagnostics-filters {
+  justify-content: flex-start;
+}
+
+.diagnostics-filters label {
+  display: grid;
+  gap: 6px;
+  color: #94a3b8;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.diagnostics-filters select {
+  min-width: 132px;
+  border: 1px solid rgba(148, 163, 184, 0.32);
+  border-radius: 10px;
+  padding: 8px 10px;
+  background: rgba(15, 23, 42, 0.92);
+  color: #e2e8f0;
+}
+
+.diagnostic-title-row {
+  justify-content: flex-start;
+}
+
+.diagnostic-context {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0;
+}
+
+.diagnostic-context div {
+  display: flex;
+  gap: 6px;
+  border-radius: 999px;
+  padding: 4px 10px;
+  background: rgba(148, 163, 184, 0.12);
+}
+
+.diagnostic-context dt,
+.diagnostic-context dd {
+  margin: 0;
+  font-size: 12px;
+}
+
+.diagnostic-context dt {
+  color: #94a3b8;
+}
+
+.diagnostic-context dd {
+  color: #e2e8f0;
+  font-weight: 700;
+}
+
+.diagnostic-detail {
+  overflow: auto;
+  max-width: 100%;
+  margin: 0;
+  border-radius: 10px;
+  padding: 10px;
+  background: rgba(2, 6, 23, 0.72);
+  color: #c4b5fd;
+  font-size: 12px;
 }
 
 .preview-grid {

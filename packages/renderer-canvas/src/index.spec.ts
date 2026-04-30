@@ -221,6 +221,155 @@ describe('renderSlideToCanvas', () => {
     expect(operations).toContain('fillText:2. @10,78.6')
   })
 
+  it('skips hidden and transparent canvas elements', () => {
+    const operations: string[] = []
+    const context = createMockContext(operations)
+    const slide: Slide = {
+      id: 'slide-visibility',
+      index: 0,
+      part: '/ppt/slides/slide-visibility.xml',
+      relationshipId: 'rIdVisibility',
+      background: undefined,
+      elements: [
+        {
+          id: 'hidden-text',
+          index: 0,
+          type: 'text',
+          slidePart: '/ppt/slides/slide-visibility.xml',
+          source,
+          visible: false,
+          opacity: 1,
+          zIndex: 0,
+          transform: { x: 10, y: 10, width: 200, height: 60 },
+          text: 'Hidden text',
+          textBody: { paragraphs: [{ text: 'Hidden text', runs: [{ text: 'Hidden text' }] }] },
+        },
+        {
+          id: 'transparent-text',
+          index: 1,
+          type: 'text',
+          slidePart: '/ppt/slides/slide-visibility.xml',
+          source,
+          visible: true,
+          opacity: 0,
+          zIndex: 0,
+          transform: { x: 10, y: 80, width: 200, height: 60 },
+          text: 'Transparent text',
+          textBody: { paragraphs: [{ text: 'Transparent text', runs: [{ text: 'Transparent text' }] }] },
+        },
+      ],
+      diagnostics: [],
+    }
+
+    renderSlideToCanvas({ presentation: { width: 960, height: 540 }, slide, context, clear: false })
+
+    expect(operations.some((entry) => entry.includes('Hidden text'))).toBe(false)
+    expect(operations.some((entry) => entry.includes('Transparent text'))).toBe(false)
+  })
+
+  it('applies element opacity to canvas drawing', () => {
+    const operations: string[] = []
+    const context = createMockContext(operations)
+    const slide: Slide = {
+      id: 'slide-opacity',
+      index: 0,
+      part: '/ppt/slides/slide-opacity.xml',
+      relationshipId: 'rIdOpacity',
+      background: undefined,
+      elements: [
+        {
+          id: 'opacity-text',
+          index: 0,
+          type: 'text',
+          slidePart: '/ppt/slides/slide-opacity.xml',
+          source,
+          visible: true,
+          opacity: 0.4,
+          zIndex: 0,
+          transform: { x: 10, y: 10, width: 200, height: 60 },
+          text: 'Opacity text',
+          textBody: { paragraphs: [{ text: 'Opacity text', runs: [{ text: 'Opacity text' }] }] },
+        },
+      ],
+      diagnostics: [],
+    }
+
+    renderSlideToCanvas({ presentation: { width: 960, height: 540 }, slide, context, clear: false })
+
+    expect(operations).toContain('globalAlpha:0.4')
+    expect(operations.some((entry) => entry.startsWith('fillText:Opacity text@'))).toBe(true)
+  })
+
+  it('applies canvas connector dash and stroke opacity', () => {
+    const operations: string[] = []
+    const context = createMockContext(operations)
+    const slide: Slide = {
+      id: 'slide-connector-style',
+      index: 0,
+      part: '/ppt/slides/slide-connector-style.xml',
+      relationshipId: 'rIdConnectorStyle',
+      background: undefined,
+      elements: [
+        {
+          id: 'styled-connector',
+          index: 0,
+          type: 'connector',
+          slidePart: '/ppt/slides/slide-connector-style.xml',
+          source,
+          visible: true,
+          opacity: 1,
+          zIndex: 0,
+          transform: { x: 20, y: 30, width: 120, height: 20 },
+          line: { color: '#0f172a', width: 3, opacity: 0.25, dash: 'dash' },
+          diagnostics: [],
+        },
+      ],
+      diagnostics: [],
+    }
+
+    renderSlideToCanvas({ presentation: { width: 960, height: 540 }, slide, context, clear: false })
+
+    expect(operations).toContain('setLineDash:9,6')
+    expect(operations).toContain('globalAlpha:0.25')
+    expect(operations).toContain('stroke:#0f172a')
+  })
+
+  it('applies canvas shape fill opacity and stroke opacity', () => {
+    const operations: string[] = []
+    const context = createMockContext(operations)
+    const slide: Slide = {
+      id: 'slide-shape-opacity',
+      index: 0,
+      part: '/ppt/slides/slide-shape-opacity.xml',
+      relationshipId: 'rIdShapeOpacity',
+      background: undefined,
+      elements: [
+        {
+          id: 'opacity-shape',
+          index: 0,
+          type: 'shape',
+          slidePart: '/ppt/slides/slide-shape-opacity.xml',
+          source,
+          visible: true,
+          opacity: 1,
+          zIndex: 0,
+          transform: { x: 10, y: 10, width: 80, height: 40 },
+          fill: { type: 'solid', color: '#22c55e', opacity: 0.5 },
+          line: { color: '#166534', width: 2, opacity: 0.75 },
+          diagnostics: [],
+        },
+      ],
+      diagnostics: [],
+    }
+
+    renderSlideToCanvas({ presentation: { width: 960, height: 540 }, slide, context, clear: false })
+
+    expect(operations).toContain('globalAlpha:0.5')
+    expect(operations).toContain('fill:#22c55e')
+    expect(operations).toContain('globalAlpha:0.75')
+    expect(operations).toContain('stroke:#166534')
+  })
+
   it('renders slide background, shape, connector, image placeholder, and text runs', () => {
     const operations: string[] = []
     const context = createMockContext(operations)
@@ -336,6 +485,7 @@ function createMockContext(operations: string[]): CanvasRenderingContext2D {
     textBaseline: 'alphabetic' as CanvasTextBaseline,
     globalAlpha: 1,
   }
+  const stack: Array<typeof state> = []
 
   return {
     get fillStyle() {
@@ -379,11 +529,19 @@ function createMockContext(operations: string[]): CanvasRenderingContext2D {
     },
     set globalAlpha(value) {
       state.globalAlpha = value
+      operations.push(`globalAlpha:${value}`)
     },
     save() {
+      stack.push({ ...state })
       operations.push('save')
     },
     restore() {
+      const previous = stack.pop()
+
+      if (previous) {
+        Object.assign(state, previous)
+      }
+
       operations.push('restore')
     },
     clearRect(x: number, y: number, width: number, height: number) {

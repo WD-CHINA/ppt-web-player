@@ -710,4 +710,184 @@ describe('parsePptx', () => {
       }),
     )
   })
+
+  it('applies minimal theme and placeholder style inheritance', async () => {
+    const zip = new JSZip()
+    zip.file(
+      '[Content_Types].xml',
+      `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
+  <Override PartName="/ppt/presentation.xml" ContentType="application/vnd.openxmlformats-officedocument.presentationml.presentation.main+xml"/>
+</Types>`,
+    )
+    zip.file(
+      'ppt/presentation.xml',
+      `<p:presentation xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
+  <p:sldMasterIdLst><p:sldMasterId id="2147483648" r:id="rIdMaster1"/></p:sldMasterIdLst>
+  <p:sldSz cx="9144000" cy="5143500"/>
+  <p:sldIdLst><p:sldId id="256" r:id="rId1"/></p:sldIdLst>
+</p:presentation>`,
+    )
+    zip.file(
+      'ppt/_rels/presentation.xml.rels',
+      `<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rIdMaster1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/slideMaster" Target="slideMasters/slideMaster1.xml"/>
+  <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/slide" Target="slides/slide1.xml"/>
+</Relationships>`,
+    )
+    zip.file(
+      'ppt/theme/theme1.xml',
+      `<a:theme xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" name="Office Theme">
+  <a:themeElements>
+    <a:clrScheme name="Office">
+      <a:dk1><a:srgbClr val="000000"/></a:dk1>
+      <a:lt1><a:srgbClr val="FFFFFF"/></a:lt1>
+      <a:dk2><a:srgbClr val="1F2937"/></a:dk2>
+      <a:lt2><a:srgbClr val="F9FAFB"/></a:lt2>
+      <a:accent1><a:srgbClr val="3486F7"/></a:accent1>
+      <a:accent2><a:srgbClr val="22C55E"/></a:accent2>
+      <a:accent3><a:srgbClr val="A855F7"/></a:accent3>
+      <a:accent4><a:srgbClr val="F97316"/></a:accent4>
+      <a:accent5><a:srgbClr val="0EA5E9"/></a:accent5>
+      <a:accent6><a:srgbClr val="EF4444"/></a:accent6>
+      <a:hlink><a:srgbClr val="2563EB"/></a:hlink>
+      <a:folHlink><a:srgbClr val="7C3AED"/></a:folHlink>
+    </a:clrScheme>
+  </a:themeElements>
+</a:theme>`,
+    )
+    zip.file(
+      'ppt/slideMasters/slideMaster1.xml',
+      `<p:sldMaster xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main" xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main">
+  <p:cSld><p:bg><p:bgPr><a:solidFill><a:schemeClr val="accent5"/></a:solidFill></p:bgPr></p:bg><p:spTree>
+    <p:nvGrpSpPr/><p:grpSpPr/>
+    <p:sp>
+      <p:nvSpPr><p:cNvPr id="2" name="Master Body"/><p:nvPr><p:ph type="body" idx="2"/></p:nvPr></p:nvSpPr>
+      <p:spPr><a:solidFill><a:schemeClr val="accent4"/></a:solidFill><a:ln w="38100"><a:solidFill><a:schemeClr val="accent6"/></a:solidFill></a:ln></p:spPr>
+    </p:sp>
+  </p:spTree></p:cSld>
+</p:sldMaster>`,
+    )
+    zip.file(
+      'ppt/slideMasters/_rels/slideMaster1.xml.rels',
+      `<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rIdTheme1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/theme" Target="../theme/theme1.xml"/>
+  <Relationship Id="rIdLayout1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/slideLayout" Target="../slideLayouts/slideLayout1.xml"/>
+</Relationships>`,
+    )
+    zip.file(
+      'ppt/slideLayouts/slideLayout1.xml',
+      `<p:sldLayout xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main" xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main">
+  <p:cSld><p:spTree>
+    <p:nvGrpSpPr/><p:grpSpPr/>
+    <p:sp>
+      <p:nvSpPr><p:cNvPr id="2" name="Layout Title"/><p:nvPr><p:ph type="title" idx="1"/></p:nvPr></p:nvSpPr>
+      <p:spPr><a:solidFill><a:schemeClr val="accent1"/></a:solidFill><a:ln w="76200"><a:solidFill><a:schemeClr val="accent2"/></a:solidFill></a:ln></p:spPr>
+      <p:txBody><a:bodyPr/><a:lstStyle><a:lvl1pPr><a:defRPr sz="2800" b="1"><a:solidFill><a:schemeClr val="accent3"/></a:solidFill><a:latin typeface="Aptos"/></a:defRPr></a:lvl1pPr></a:lstStyle></p:txBody>
+    </p:sp>
+  </p:spTree></p:cSld>
+</p:sldLayout>`,
+    )
+    zip.file(
+      'ppt/slides/slide1.xml',
+      `<p:sld xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main" xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main">
+  <p:cSld><p:spTree>
+    <p:nvGrpSpPr/><p:grpSpPr/>
+    <p:sp>
+      <p:nvSpPr><p:cNvPr id="2" name="Inherited Title"/><p:nvPr><p:ph type="title" idx="1"/></p:nvPr></p:nvSpPr>
+      <p:spPr><a:xfrm><a:off x="914400" y="914400"/><a:ext cx="3657600" cy="914400"/></a:xfrm></p:spPr>
+      <p:txBody><a:p><a:r><a:t>Inherited text</a:t></a:r></a:p></p:txBody>
+    </p:sp>
+    <p:sp>
+      <p:nvSpPr><p:cNvPr id="3" name="Master Body"/><p:nvPr><p:ph type="body" idx="2"/></p:nvPr></p:nvSpPr>
+      <p:spPr><a:xfrm><a:off x="914400" y="2286000"/><a:ext cx="3657600" cy="914400"/></a:xfrm></p:spPr>
+      <p:txBody><a:p><a:r><a:t>Master fallback</a:t></a:r></a:p></p:txBody>
+    </p:sp>
+    <p:sp>
+      <p:nvSpPr><p:cNvPr id="4" name="Direct Override"/><p:nvPr><p:ph type="title" idx="1"/></p:nvPr></p:nvSpPr>
+      <p:spPr><a:xfrm><a:off x="914400" y="3657600"/><a:ext cx="3657600" cy="914400"/></a:xfrm><a:solidFill><a:srgbClr val="FF0000"/></a:solidFill></p:spPr>
+      <p:txBody><a:p><a:r><a:t>Direct override</a:t></a:r></a:p></p:txBody>
+    </p:sp>
+    <p:sp>
+      <p:nvSpPr><p:cNvPr id="5" name="Missing Placeholder"/><p:nvPr><p:ph type="subtitle" idx="9"/></p:nvPr></p:nvSpPr>
+      <p:spPr><a:xfrm><a:off x="5029200" y="914400"/><a:ext cx="1828800" cy="914400"/></a:xfrm></p:spPr>
+      <p:txBody><a:p><a:r><a:t>Missing placeholder</a:t></a:r></a:p></p:txBody>
+    </p:sp>
+  </p:spTree></p:cSld>
+</p:sld>`,
+    )
+    zip.file(
+      'ppt/slides/_rels/slide1.xml.rels',
+      `<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rIdLayoutSlide1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/slideLayout" Target="../slideLayouts/slideLayout1.xml"/>
+</Relationships>`,
+    )
+
+    const input = await zip.generateAsync({ type: 'arraybuffer' })
+    const result = await parsePptx(input)
+    const slide = result.presentation?.slides[0]
+    const [title, body, direct, missing] = slide?.elements ?? []
+
+    expect(slide?.background).toEqual({ type: 'solid', color: '#0EA5E9' })
+    expect(title).toEqual(
+      expect.objectContaining({
+        type: 'text',
+        fill: { type: 'solid', color: '#3486F7' },
+        line: { color: '#22C55E', width: 8 },
+        textBody: {
+          paragraphs: [
+            {
+              text: 'Inherited text',
+              runs: [
+                {
+                  text: 'Inherited text',
+                  style: { bold: true, fontSize: 2800, color: '#A855F7', fontFace: 'Aptos' },
+                },
+              ],
+              style: {
+                defaultRunStyle: { bold: true, fontSize: 2800, color: '#A855F7', fontFace: 'Aptos' },
+              },
+            },
+          ],
+        },
+      }),
+    )
+    expect(body).toEqual(
+      expect.objectContaining({
+        type: 'text',
+        fill: { type: 'solid', color: '#F97316' },
+        line: { color: '#EF4444', width: 4 },
+      }),
+    )
+    expect(direct).toEqual(
+      expect.objectContaining({
+        type: 'text',
+        fill: { type: 'solid', color: '#FF0000' },
+        line: { color: '#22C55E', width: 8 },
+      }),
+    )
+    expect(missing).toEqual(
+      expect.objectContaining({
+        type: 'text',
+        text: 'Missing placeholder',
+      }),
+    )
+    expect(result.diagnostics).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          code: DIAGNOSTIC_CODES.styleInheritanceIncomplete,
+          severity: 'info',
+          part: 'ppt/slides/slide1.xml',
+          slideIndex: 0,
+          elementId: 'element-4',
+          detail: expect.objectContaining({
+            placeholderType: 'subtitle',
+            placeholderIndex: '9',
+            layoutPart: 'ppt/slideLayouts/slideLayout1.xml',
+            masterPart: 'ppt/slideMasters/slideMaster1.xml',
+          }),
+        }),
+      ]),
+    )
+  })
 })

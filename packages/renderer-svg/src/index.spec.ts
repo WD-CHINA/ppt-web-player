@@ -287,6 +287,125 @@ describe('renderSlideToSvg', () => {
     expect([...svg.matchAll(/>2\. <\/tspan>/g)].length).toBe(2)
   })
 
+  it('skips hidden and transparent svg elements', () => {
+    const visibleElement: TextElement = {
+      id: 'visible-text',
+      index: 0,
+      type: 'text',
+      slidePart: '/ppt/slides/slide-visible.xml',
+      source,
+      visible: true,
+      opacity: 1,
+      zIndex: 0,
+      transform: { x: 10, y: 10, width: 200, height: 60 },
+      text: 'Visible text',
+      textBody: {
+        paragraphs: [{ text: 'Visible text', runs: [{ text: 'Visible text' }] }],
+      },
+    }
+    const hiddenElement: TextElement = {
+      ...visibleElement,
+      id: 'hidden-text',
+      visible: false,
+      text: 'Hidden text',
+      textBody: {
+        paragraphs: [{ text: 'Hidden text', runs: [{ text: 'Hidden text' }] }],
+      },
+    }
+    const transparentElement: TextElement = {
+      ...visibleElement,
+      id: 'transparent-text',
+      opacity: 0,
+      text: 'Transparent text',
+      textBody: {
+        paragraphs: [{ text: 'Transparent text', runs: [{ text: 'Transparent text' }] }],
+      },
+    }
+    const slide: Slide = {
+      id: 'slide-visibility',
+      index: 0,
+      part: '/ppt/slides/slide-visibility.xml',
+      relationshipId: 'rIdVisibility',
+      layoutPart: '/ppt/slideLayouts/slideLayout1.xml',
+      masterPart: '/ppt/slideMasters/slideMaster1.xml',
+      background: undefined,
+      elements: [visibleElement, hiddenElement, transparentElement],
+      diagnostics: [],
+    }
+
+    const svg = renderSlideToSvg({ presentation: { width: 960, height: 540 }, slide })
+
+    expect(svg).toContain('Visible text')
+    expect(svg).not.toContain('Hidden text')
+    expect(svg).not.toContain('Transparent text')
+  })
+
+  it('wraps semi-transparent svg elements in an opacity group', () => {
+    const slide: Slide = {
+      id: 'slide-opacity',
+      index: 0,
+      part: '/ppt/slides/slide-opacity.xml',
+      relationshipId: 'rIdOpacity',
+      layoutPart: '/ppt/slideLayouts/slideLayout1.xml',
+      masterPart: '/ppt/slideMasters/slideMaster1.xml',
+      background: undefined,
+      elements: [
+        {
+          id: 'opacity-shape',
+          index: 0,
+          type: 'shape',
+          slidePart: '/ppt/slides/slide-opacity.xml',
+          source,
+          visible: true,
+          opacity: 0.5,
+          zIndex: 0,
+          transform: { x: 10, y: 10, width: 100, height: 40 },
+          fill: { type: 'solid', color: '#22c55e', opacity: 1 },
+          diagnostics: [],
+        },
+      ],
+      diagnostics: [],
+    }
+
+    const svg = renderSlideToSvg({ presentation: { width: 960, height: 540 }, slide })
+
+    expect(svg).toContain('<g opacity="0.5"><rect x="10" y="10" width="100" height="40"')
+    expect(svg).toContain('fill="#22c55e"')
+  })
+
+  it('renders connector line end markers in svg output', () => {
+    const slide: Slide = {
+      id: 'slide-marker',
+      index: 0,
+      part: '/ppt/slides/slide-marker.xml',
+      relationshipId: 'rIdMarker',
+      layoutPart: '/ppt/slideLayouts/slideLayout1.xml',
+      masterPart: '/ppt/slideMasters/slideMaster1.xml',
+      background: undefined,
+      elements: [
+        {
+          id: 'connector-marker',
+          index: 0,
+          type: 'connector',
+          slidePart: '/ppt/slides/slide-marker.xml',
+          source,
+          visible: true,
+          opacity: 1,
+          zIndex: 0,
+          transform: { x: 20, y: 30, width: 120, height: 20 },
+          line: { color: '#0f172a', width: 3, headEnd: { type: 'oval' }, tailEnd: { type: 'triangle' } },
+          diagnostics: [],
+        },
+      ],
+      diagnostics: [],
+    }
+
+    const svg = renderSlideToSvg({ presentation: { width: 960, height: 540 }, slide })
+
+    expect(svg).toContain('marker-start="url(#ppt-marker-oval)"')
+    expect(svg).toContain('marker-end="url(#ppt-marker-triangle)"')
+  })
+
   it('applies paragraph indent and spacing to line positions', () => {
     const element: TextElement = {
       id: 'text-3',

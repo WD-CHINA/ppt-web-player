@@ -15,6 +15,8 @@ export default defineConfig({
   resolve: {
     alias: {
       '@': fileURLToPath(new URL('./src', import.meta.url)),
+      '@pptx-player/renderer-canvas': fileURLToPath(new URL('../renderer-canvas/src/index.ts', import.meta.url)),
+      '@pptx-player/renderer-svg': fileURLToPath(new URL('../renderer-svg/src/index.ts', import.meta.url)),
       'readable-stream': fileURLToPath(new URL('./src/browserStreamShim.ts', import.meta.url)),
     },
   },

@@ -166,12 +166,12 @@ Week 3 MVP 先把正式边界立起来：
 - basic shape
 - connector
 
-其中 `renderer-canvas` 当前也已具备同等级别的静态骨架，但仍属于“基础可用”阶段：
+其中 `renderer-canvas` 当前也已具备同等级别的静态骨架，并与 SVG 共享 `packages/layout` 的文本布局入口：
 
 - 直接消费 `textBody.paragraphs[].runs[]`
-- 复用与 SVG 一致的字号 / 缩进 / bullet / 行距基础换算思路
-- 先依赖 canvas `measureText()` 做 run 宽度累加
-- 暂不追求真实自动换行、精确字体度量、复杂列表层级
+- 复用 `layoutTextElement()` 处理换行、run、bullet、auto-number、缩进和段落间距
+- 依赖 canvas `measureText()` 做 run 宽度测量
+- 与 SVG 的差异主要来自具体绘制后端能力，而不是 normalized model 不一致
 
 ### 关联文件
 
@@ -211,6 +211,44 @@ app 中保留：
 
 - `packages/renderer-svg/src/index.ts`
 - `packages/app/src/App.vue`
+
+## SVG 与 Canvas renderer 的当前能力差异
+
+### 现象
+
+同一份 slide normalized model 交给 SVG 与 Canvas 后端时，基础结构一致，但少量视觉细节不会完全一致。
+
+### 原因
+
+两个 renderer 都只消费 core normalized model，不读取原始 XML；差异来自输出目标不同：SVG 输出可声明的 DOM / marker / text-decoration，Canvas 则需要手动画路径和文本装饰。
+
+### 当前矩阵
+
+| 能力 | renderer-svg | renderer-canvas |
+| --- | --- | --- |
+| 输入模型 | `Presentation` + `Slide` + `mediaUrls` | `Presentation` + `Slide` + `mediaBitmaps` |
+| text layout | 复用 `layoutTextElement()`，用估算宽度测量 | 复用 `layoutTextElement()`，用 `context.measureText()` 测量 |
+| run 样式 | color / fontFace / fontSize / bold / italic / underline | color / fontFace / fontSize / bold / italic |
+| visibility / opacity | 跳过 hidden / 透明元素，半透明元素用 `<g opacity>` | 跳过 hidden / 透明元素，半透明元素乘到 `globalAlpha` |
+| shape fill / line | solid/noFill、fill opacity、stroke opacity、dash | solid/noFill、fill opacity、stroke opacity、dash |
+| connector marker | 支持 headEnd / tailEnd 的基础 marker | 暂不绘制 arrowhead marker |
+| 输出形态 | SVG 字符串，可由 app 用 `v-html` 挂载 | 直接绘制到 `CanvasRenderingContext2D` |
+
+### 解决方案
+
+调试时按能力矩阵判断问题归属：
+
+- SVG 有箭头而 Canvas 没箭头，当前是 Canvas renderer 能力差异，不是 parser 丢了 `LineStyle.headEnd/tailEnd`。
+- SVG 有 underline 而 Canvas 没 underline，当前是 Canvas 文本装饰未实现，不是 `TextStyle.underline` 没解析。
+- 两个 renderer 都缺同一字段时，优先回 core model 和 parser 查。
+- 只有某个 renderer 缺视觉表现时，再改对应 renderer。
+
+### 关联文件
+
+- `packages/renderer-svg/src/index.ts`
+- `packages/renderer-canvas/src/index.ts`
+- `packages/layout/src/index.ts`
+- `packages/core/src/model/Presentation.ts`
 
 ## Workspace 包接入时，先处理 TypeScript 引用链
 
@@ -331,6 +369,37 @@ Week 3 当前实现已经升级为真正消费 `textBody`：
 - `packages/renderer-svg/src/index.spec.ts`
 - `packages/app/src/App.vue`
 - `packages/core/src/model/Presentation.ts`
+
+## renderer 不负责 master/layout 样式继承
+
+### 现象
+
+同一个 placeholder 在 SVG 与 Canvas 中都缺少 fill、line 或默认文字样式时，容易误以为两个 renderer 都漏了样式处理。
+
+### 原因
+
+当前架构要求 renderer 只消费 normalized model，不读取 raw XML，也不重新执行 theme/master/layout/slide 的继承链。Week 2 的最小样式继承已经在 core parser 中完成：slide element 输出时应尽量带上合并后的 fill、line、textBody run style 与 background。
+
+### 解决方案
+
+排查样式继承问题时先看 core 输出：
+
+- `presentation.slideMasters[].defaults`
+- `presentation.slideLayouts[].defaults`
+- `slide.background`
+- `element.fill` / `element.line`
+- `element.textBody.paragraphs[].runs[].style`
+- `STYLE_INHERITANCE_INCOMPLETE` diagnostics
+
+只有 core 模型中字段已存在但某个后端没画出来时，才修改对应 renderer。
+
+### 关联文件
+
+- `packages/core/src/ooxml/presentation/parseSlideMaster.ts`
+- `packages/core/src/ooxml/presentation/parseSlide.ts`
+- `packages/core/src/ooxml/presentation/parseShape.ts`
+- `packages/renderer-svg/src/index.ts`
+- `packages/renderer-canvas/src/index.ts`
 
 ## 遇到渲染异常时的排查清单
 

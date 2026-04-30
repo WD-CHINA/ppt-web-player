@@ -71,13 +71,17 @@ export async function parseSlideList(
       )
     }
 
-    const slideContent = await parseSlide(pptx, relationship.path, index, references.theme)
-    diagnostics.push(...slideContent.diagnostics)
     const layoutReference = await resolveSlideLayoutReference(pptx, relationship.path)
     const matchedLayout = layoutReference ? references.slideLayouts.find((layout) => layout.part === layoutReference.path) : undefined
     const matchedMaster = matchedLayout?.masterPart
       ? references.slideMasters.find((master) => master.part === matchedLayout.masterPart)
       : undefined
+    const slideContent = await parseSlide(pptx, relationship.path, index, {
+      theme: references.theme,
+      layout: matchedLayout,
+      master: matchedMaster,
+    })
+    diagnostics.push(...slideContent.diagnostics)
 
     slides.push({
       id,

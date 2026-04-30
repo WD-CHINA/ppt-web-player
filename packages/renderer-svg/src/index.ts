@@ -45,6 +45,20 @@ function renderDefs(): string {
 }
 
 function renderElement(element: SlideElement, mediaUrls: Record<string, string>): string {
+  if (!element.transform || !element.visible || element.opacity <= 0) {
+    return ''
+  }
+
+  const content = renderElementContent(element, mediaUrls)
+
+  if (element.opacity >= 1 || !content) {
+    return content
+  }
+
+  return `<g opacity="${element.opacity}">${content}</g>`
+}
+
+function renderElementContent(element: SlideElement, mediaUrls: Record<string, string>): string {
   if (!element.transform) {
     return ''
   }
@@ -112,7 +126,7 @@ function estimateTextWidth(text: string, style: TextStyle | undefined, defaultFo
       return width + fontSize * 0.33
     }
 
-    const isAscii = /^[\x00-\x7F]$/.test(character)
+    const isAscii = character.charCodeAt(0) <= 0x7f
     return width + fontSize * (isAscii ? 0.56 : 1)
   }, 0)
 }

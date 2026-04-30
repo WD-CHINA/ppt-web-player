@@ -299,7 +299,7 @@ function paragraphBullet(paragraph: Paragraph, autoNumberState: AutoNumberState)
   const startAt = bullet.autoNumberStartAt ?? 1
   const current = autoNumberState.nextByLevel.get(level) ?? startAt
 
-  for (const knownLevel of [...autoNumberState.nextByLevel.keys()]) {
+  for (const knownLevel of autoNumberState.nextByLevel.keys()) {
     if (knownLevel > level) {
       autoNumberState.nextByLevel.delete(knownLevel)
     }

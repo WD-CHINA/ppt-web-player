@@ -2,7 +2,7 @@ import { parseFill } from '../drawing/Fill'
 import { DIAGNOSTIC_CODES } from '../../diagnostics/codes'
 import { pushDiagnostic, slideDiagnosticContext } from '../../diagnostics/context'
 import type { Diagnostic } from '../../diagnostics/Diagnostic'
-import type { Fill, PresentationTheme, SlideElement } from '../../model/Presentation'
+import type { Fill, PresentationTheme, SlideElement, SlideLayout, SlideMaster } from '../../model/Presentation'
 import type { PptxPackage } from '../../package/PptxPackage'
 import type { XmlNode } from '../../xml/XmlNode'
 import * as xml from '../../xml/XmlQuery'
@@ -15,11 +15,17 @@ export interface ParsedSlideContent {
   diagnostics: Diagnostic[]
 }
 
+export interface SlideParseContext {
+  theme?: PresentationTheme
+  layout?: SlideLayout
+  master?: SlideMaster
+}
+
 export async function parseSlide(
   pptx: PptxPackage,
   slidePart: string,
   slideIndex?: number,
-  theme?: PresentationTheme,
+  parseContext: SlideParseContext = {},
 ): Promise<ParsedSlideContent> {
   const diagnostics: Diagnostic[] = []
   const context = slideDiagnosticContext(slidePart, slideIndex)
@@ -53,20 +59,20 @@ export async function parseSlide(
     return { elements: [], diagnostics }
   }
 
-  const background = parseSlideBackground(root)
+  const background = parseSlideBackground(root, parseContext)
   const elements: SlideElement[] = []
 
   for (const node of xml.children(shapeTree)) {
-    await appendShapeTreeChild(pptx, slidePart, slideIndex, node, elements, diagnostics, theme)
+    await appendShapeTreeChild(pptx, slidePart, slideIndex, node, elements, diagnostics, parseContext)
   }
 
   return { background, elements, diagnostics }
 }
 
-function parseSlideBackground(root: XmlNode): Fill | undefined {
+function parseSlideBackground(root: XmlNode, context: SlideParseContext): Fill | undefined {
   const background = xml.path(root, ['p:cSld', 'p:bg'])
 
-  return background ? parseFill(background) : undefined
+  return background ? parseFill(background, context.theme) : (context.layout?.defaults?.background ?? context.master?.defaults?.background)
 }
 
 async function appendShapeTreeChild(
@@ -76,7 +82,7 @@ async function appendShapeTreeChild(
   node: XmlNode,
   elements: SlideElement[],
   diagnostics: Diagnostic[],
-  theme?: PresentationTheme,
+  parseContext: SlideParseContext,
 ): Promise<void> {
   if (node.name === 'p:nvGrpSpPr' || node.name === 'p:grpSpPr') {
     return
@@ -84,13 +90,13 @@ async function appendShapeTreeChild(
 
   if (node.name === 'p:grpSp') {
     for (const child of xml.children(node)) {
-      await appendShapeTreeChild(pptx, slidePart, slideIndex, child, elements, diagnostics, theme)
+      await appendShapeTreeChild(pptx, slidePart, slideIndex, child, elements, diagnostics, parseContext)
     }
 
     return
   }
 
-  const element = await parseShapeTreeChild(pptx, slidePart, slideIndex, node, elements.length, diagnostics, theme)
+  const element = await parseShapeTreeChild(pptx, slidePart, slideIndex, node, elements.length, diagnostics, parseContext)
 
   if (element) {
     elements.push(element)
@@ -104,14 +110,14 @@ async function parseShapeTreeChild(
   node: XmlNode,
   index: number,
   diagnostics: Diagnostic[],
-  theme?: PresentationTheme,
+  parseContext: SlideParseContext,
 ): Promise<SlideElement | null> {
   if (node.name === 'p:sp') {
-    return parseShapeElement(node, index, slidePart, theme)
+    return parseShapeElement(node, index, slidePart, slideIndex, diagnostics, parseContext)
   }
 
   if (node.name === 'p:cxnSp') {
-    return parseConnectorElement(node, index, slidePart)
+    return parseConnectorElement(node, index, slidePart, parseContext)
   }
 
   if (node.name === 'p:pic') {

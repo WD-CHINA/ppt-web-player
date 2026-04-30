@@ -49,6 +49,7 @@ export interface SlideMaster {
   relationshipId: string
   themePart?: string
   layoutParts: string[]
+  defaults?: SlideStyleDefaults
 }
 
 export interface SlideLayout {
@@ -56,6 +57,26 @@ export interface SlideLayout {
   part: string
   relationshipId?: string
   masterPart?: string
+  name?: string
+  defaults?: SlideStyleDefaults
+}
+
+export interface SlideStyleDefaults {
+  background?: Fill
+  placeholders: PlaceholderStyle[]
+}
+
+export interface PlaceholderStyle {
+  type?: string
+  index?: string
+  name?: string
+  fill?: Fill
+  line?: LineStyle
+  text?: TextStyleDefaults
+}
+
+export interface TextStyleDefaults {
+  paragraphs: Record<number, ParagraphStyle>
 }
 
 export interface Slide {

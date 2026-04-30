@@ -7,20 +7,23 @@ import type {
   TextRun,
   TextSpacing,
   TextStyle,
-  ThemeColorScheme,
+  TextStyleDefaults,
 } from '../../model/Presentation'
 import type { XmlNode } from '../../xml/XmlNode'
 import * as xml from '../../xml/XmlQuery'
-import { normalizeSrgbColor } from '../drawing/Fill'
+import { parseDrawingColor } from '../drawing/Color'
 
-export function parseTextBody(node: XmlNode, theme?: PresentationTheme): TextBody | undefined {
+export function parseTextBody(node: XmlNode, theme?: PresentationTheme, inheritedDefaults?: TextStyleDefaults): TextBody | undefined {
   const textBody = xml.child(node, 'p:txBody')
 
   if (!textBody) {
     return undefined
   }
 
-  const paragraphs = xml.children(textBody, 'a:p').map((paragraph) => parseParagraph(paragraph, theme)).filter((paragraph) => paragraph.text.length > 0)
+  const paragraphs = xml
+    .children(textBody, 'a:p')
+    .map((paragraph) => parseParagraph(paragraph, theme, inheritedDefaults))
+    .filter((paragraph) => paragraph.text.length > 0)
 
   if (paragraphs.length === 0) {
     return undefined
@@ -29,8 +32,42 @@ export function parseTextBody(node: XmlNode, theme?: PresentationTheme): TextBod
   return { paragraphs }
 }
 
-function parseParagraph(node: XmlNode, theme?: PresentationTheme): Paragraph {
-  const style = parseParagraphStyle(node, theme)
+export function parseTextBodyDefaults(node: XmlNode, theme?: PresentationTheme): TextStyleDefaults | undefined {
+  const textBody = xml.child(node, 'p:txBody')
+
+  if (!textBody) {
+    return undefined
+  }
+
+  const paragraphs: Record<number, ParagraphStyle> = {}
+  const listStyle = xml.child(textBody, 'a:lstStyle')
+
+  for (let index = 1; index <= 9; index += 1) {
+    const style = parseParagraphStyle(xml.child(listStyle, `a:lvl${index}pPr`), theme)
+
+    if (style) {
+      paragraphs[index - 1] = style
+    }
+  }
+
+  const firstParagraphStyle = parseParagraphStyle(xml.child(xml.child(textBody, 'a:p'), 'a:pPr'), theme)
+
+  if (firstParagraphStyle) {
+    const mergedStyle = mergeParagraphStyle(paragraphs[firstParagraphStyle.level ?? 0], firstParagraphStyle)
+
+    if (mergedStyle) {
+      paragraphs[firstParagraphStyle.level ?? 0] = mergedStyle
+    }
+  }
+
+  return Object.keys(paragraphs).length > 0 ? { paragraphs } : undefined
+}
+
+function parseParagraph(node: XmlNode, theme: PresentationTheme | undefined, inheritedDefaults?: TextStyleDefaults): Paragraph {
+  const directStyle = parseParagraphStyle(xml.child(node, 'a:pPr'), theme)
+  const level = directStyle?.level ?? 0
+  const inheritedStyle = inheritedDefaults?.paragraphs[level]
+  const style = mergeParagraphStyle(inheritedStyle, directStyle)
   const runs = collectRuns(node, theme, style?.defaultRunStyle)
 
   return {
@@ -116,9 +153,7 @@ function parseFieldRun(node: XmlNode, theme: PresentationTheme | undefined, defa
   }
 }
 
-function parseParagraphStyle(node: XmlNode, theme?: PresentationTheme): ParagraphStyle | undefined {
-  const properties = xml.child(node, 'a:pPr')
-
+function parseParagraphStyle(properties: XmlNode | null, theme?: PresentationTheme): ParagraphStyle | undefined {
   if (!properties) {
     return undefined
   }
@@ -189,7 +224,7 @@ function parseParagraphStyle(node: XmlNode, theme?: PresentationTheme): Paragrap
 }
 
 function parseBulletStyle(node: XmlNode, theme?: PresentationTheme): BulletStyle | undefined {
-  const bulletColor = parseBulletColor(node, theme?.colorScheme)
+  const bulletColor = parseBulletColor(node, theme)
   const bulletFontFace = xml.attr(xml.child(node, 'a:buFont'), 'typeface')
   const bulletFontSize = parseBulletSize(node)
 
@@ -233,26 +268,8 @@ function parseBulletStyle(node: XmlNode, theme?: PresentationTheme): BulletStyle
   }
 }
 
-function parseBulletColor(node: XmlNode, colorScheme?: ThemeColorScheme): string | undefined {
-  const bulletColorNode = xml.child(node, 'a:buClr')
-
-  if (!bulletColorNode) {
-    return undefined
-  }
-
-  const srgbColor = normalizeSrgbColor(xml.attr(xml.child(bulletColorNode, 'a:srgbClr'), 'val'))
-
-  if (srgbColor) {
-    return srgbColor
-  }
-
-  const schemeColor = xml.attr(xml.child(bulletColorNode, 'a:schemeClr'), 'val')
-
-  if (!schemeColor || !colorScheme) {
-    return undefined
-  }
-
-  return resolveThemeColor(schemeColor, colorScheme)
+function parseBulletColor(node: XmlNode, theme?: PresentationTheme): string | undefined {
+  return parseDrawingColor(xml.child(node, 'a:buClr'), theme)
 }
 
 function parseBulletSize(node: XmlNode): number | undefined {
@@ -300,7 +317,7 @@ function parseTextStyle(node: XmlNode | null, theme?: PresentationTheme): TextSt
   const underline = xml.attr(node, 'u')
   const fontSize = parseNumber(xml.attr(node, 'sz'))
   const fontFace = xml.attr(node, 'latin:typeface') ?? xml.attr(xml.child(node, 'a:latin'), 'typeface')
-  const color = parseTextColor(node, theme?.colorScheme)
+  const color = parseTextColor(node, theme)
 
   if (bold !== undefined) {
     style.bold = bold
@@ -329,26 +346,20 @@ function parseTextStyle(node: XmlNode | null, theme?: PresentationTheme): TextSt
   return Object.keys(style).length > 0 ? style : undefined
 }
 
-function parseTextColor(node: XmlNode, colorScheme?: ThemeColorScheme): string | undefined {
-  const solidFill = xml.child(node, 'a:solidFill')
-  const srgbColor = normalizeSrgbColor(xml.attr(xml.child(solidFill, 'a:srgbClr'), 'val'))
+function parseTextColor(node: XmlNode, theme?: PresentationTheme): string | undefined {
+  return parseDrawingColor(xml.child(node, 'a:solidFill'), theme)
+}
 
-  if (srgbColor) {
-    return srgbColor
-  }
-
-  const schemeColor = xml.attr(xml.child(solidFill, 'a:schemeClr'), 'val')
-
-  if (!schemeColor || !colorScheme) {
+function mergeParagraphStyle(base: ParagraphStyle | undefined, override: ParagraphStyle | undefined): ParagraphStyle | undefined {
+  if (!base && !override) {
     return undefined
   }
 
-  return resolveThemeColor(schemeColor, colorScheme)
-}
-
-function resolveThemeColor(value: string, colorScheme: ThemeColorScheme): string | undefined {
-  const mappedKey = SCHEME_COLOR_MAP[value as keyof typeof SCHEME_COLOR_MAP]
-  return mappedKey ? colorScheme[mappedKey] : undefined
+  return {
+    ...base,
+    ...override,
+    defaultRunStyle: mergeTextStyle(base?.defaultRunStyle, override?.defaultRunStyle),
+  }
 }
 
 function mergeTextStyle(base: TextStyle | undefined, override: TextStyle | undefined): TextStyle | undefined {
@@ -357,8 +368,8 @@ function mergeTextStyle(base: TextStyle | undefined, override: TextStyle | undef
   }
 
   return {
-    ...(base ?? {}),
-    ...(override ?? {}),
+    ...base,
+    ...override,
   }
 }
 
@@ -382,18 +393,3 @@ function parseNumber(value: string | undefined): number | undefined {
 function normalizeText(value: string): string {
   return value.trim()
 }
-
-const SCHEME_COLOR_MAP = {
-  dk1: 'dark1',
-  lt1: 'light1',
-  dk2: 'dark2',
-  lt2: 'light2',
-  accent1: 'accent1',
-  accent2: 'accent2',
-  accent3: 'accent3',
-  accent4: 'accent4',
-  accent5: 'accent5',
-  accent6: 'accent6',
-  hlink: 'hyperlink',
-  folHlink: 'followedHyperlink',
-} as const

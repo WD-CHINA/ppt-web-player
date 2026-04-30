@@ -79,9 +79,10 @@
 
 ### 本周产出
 
-- 最小样式继承框架。
-- 可用于调试的 diagnostics 面板。
-- parser 对“不支持但已降级”的情况有更清晰解释。
+- 最小样式继承框架已覆盖 theme `schemeClr`、master/layout background、placeholder fill/line/text defaults。
+- slide 解析已按 direct > layout > master 合并最小样式，renderer 继续消费合并后的 normalized model。
+- diagnostics 面板已支持 severity、code、slide 过滤，并展示 `part`、`slideIndex`、`elementId`、`detail`。
+- parser 对 placeholder 样式未匹配等降级情况会输出 `STYLE_INHERITANCE_INCOMPLETE`。
 
 ## 第 3 周：做 renderer-svg MVP，打通静态渲染
 
@@ -122,8 +123,10 @@
 ### 本周产出
 
 - `renderer-svg` 最小可用。
+- `renderer-canvas` 已具备同源 normalized model 的基础静态渲染能力，用于对照 SVG 后端差异。
 - `app` 从“自己画预览”转向“调用 renderer”。
-- 形成 `parser -> renderer` 的正式边界。
+- 形成 `parser -> layout -> renderer` 的正式边界。
+- renderer 测试和知识库记录覆盖 SVG/Canvas 的当前能力差异。
 
 ## 第 4 周：补 player 最小运行时，形成 Phase 1 雏形
 

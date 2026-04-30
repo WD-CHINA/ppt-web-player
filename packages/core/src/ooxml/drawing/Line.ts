@@ -1,10 +1,10 @@
-import type { LineEndStyle, LineStyle } from '../../model/Presentation'
+import type { LineEndStyle, LineStyle, PresentationTheme } from '../../model/Presentation'
 import type { XmlNode } from '../../xml/XmlNode'
 import * as xml from '../../xml/XmlQuery'
-import { normalizeAlpha, normalizeSrgbColor } from './Fill'
+import { normalizeAlpha, parseDrawingColor } from './Color'
 import { emuToPx } from './Transform'
 
-export function parseLine(node: XmlNode): LineStyle | undefined {
+export function parseLine(node: XmlNode, theme?: PresentationTheme): LineStyle | undefined {
   const line = findFirstChild(node, 'a:ln')
 
   if (!line) {
@@ -12,9 +12,10 @@ export function parseLine(node: XmlNode): LineStyle | undefined {
   }
 
   const width = parseLineWidth(xml.attr(line, 'w'))
-  const srgbColorNode = xml.path(line, ['a:solidFill', 'a:srgbClr'])
-  const color = normalizeSrgbColor(xml.attr(srgbColorNode, 'val'))
-  const opacity = normalizeAlpha(xml.attr(xml.child(srgbColorNode, 'a:alpha'), 'val'))
+  const solidFill = xml.child(line, 'a:solidFill')
+  const color = parseDrawingColor(solidFill, theme)
+  const colorNode = xml.child(solidFill, 'a:srgbClr') ?? xml.child(solidFill, 'a:schemeClr')
+  const opacity = normalizeAlpha(xml.attr(xml.child(colorNode, 'a:alpha'), 'val'))
   const dash = parsePresetDash(xml.attr(xml.child(line, 'a:prstDash'), 'val'))
   const headEnd = parseLineEnd(xml.child(line, 'a:headEnd'))
   const tailEnd = parseLineEnd(xml.child(line, 'a:tailEnd'))

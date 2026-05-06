@@ -20,20 +20,87 @@ const defaults = {
 }
 
 const options = parseArgs(process.argv.slice(2))
-const config = { ...defaults, ...options }
-
-if (!config.reference) {
-  printUsageAndExit('缺少 WPS 参考图，请传入 --reference <path>。')
-}
-
-if (!['svg', 'canvas'].includes(config.renderer)) {
-  printUsageAndExit('--renderer 只能是 svg 或 canvas。')
-}
-
+const cases = await loadCases(options)
 const browser = await chromium.launch()
 const page = await browser.newPage({ viewport: { width: 1440, height: 1100 }, deviceScaleFactor: 1 })
+const reports = []
 
 try {
+  await page.goto(options.baseUrl ?? defaults.baseUrl, { waitUntil: 'networkidle' })
+
+  for (const testCase of cases) {
+    reports.push(await runCase(page, testCase))
+  }
+
+  const outputDir = resolve(repositoryRoot, options.outputDir ?? defaults.outputDir)
+  await mkdir(outputDir, { recursive: true })
+  const summaryPath = resolve(outputDir, 'summary.json')
+  const summary = {
+    passed: reports.every((report) => report.passed),
+    total: reports.length,
+    failed: reports.filter((report) => !report.passed).length,
+    reports,
+  }
+
+  await writeFile(summaryPath, `${JSON.stringify(summary, null, 2)}\n`)
+
+  if (reports.length === 1) {
+    console.log(JSON.stringify({ ...reports[0], summary: relativePath(summaryPath) }, null, 2))
+  } else {
+    console.log(JSON.stringify({ ...summary, summary: relativePath(summaryPath) }, null, 2))
+  }
+
+  if (!summary.passed) {
+    process.exitCode = 1
+  }
+} finally {
+  await browser.close()
+}
+
+async function loadCases(options) {
+  if (options.cases) {
+    const casesPath = resolve(repositoryRoot, String(options.cases))
+    const content = await readFile(casesPath, 'utf8')
+    const parsed = JSON.parse(content)
+    const caseList = Array.isArray(parsed) ? parsed : parsed.cases
+
+    if (!Array.isArray(caseList) || caseList.length === 0) {
+      printUsageAndExit('--cases 文件必须包含非空数组或 { "cases": [...] }。')
+    }
+
+    return caseList.flatMap((testCase) => normalizeCase({ ...defaults, ...options, ...testCase }))
+  }
+
+  const config = { ...defaults, ...options }
+
+  if (!config.reference) {
+    printUsageAndExit('缺少 WPS 参考图，请传入 --reference <path> 或 --cases <json>。')
+  }
+
+  return normalizeCase(config)
+}
+
+function normalizeCase(config) {
+  const renderers = config.renderers ?? config.renderer
+  const rendererList = Array.isArray(renderers) ? renderers : String(renderers).split(',').map((renderer) => renderer.trim())
+
+  return rendererList.map((renderer) => {
+    if (!['svg', 'canvas'].includes(renderer)) {
+      printUsageAndExit('--renderer/renderers 只能是 svg 或 canvas。')
+    }
+
+    return {
+      ...config,
+      renderer,
+      slide: Number(config.slide),
+      pixelThreshold: Number(config.pixelThreshold),
+      maxMismatchRatio: Number(config.maxMismatchRatio),
+      referenceCrop: parseCrop(config.referenceCrop),
+    }
+  })
+}
+
+async function runCase(page, config) {
   await page.goto(config.baseUrl, { waitUntil: 'networkidle' })
   await page.getByRole('button', { name: config.sample, exact: true }).click()
   await page.waitForSelector('.presentation-card', { timeout: 30000 })
@@ -53,9 +120,9 @@ try {
   await writeFile(actualPath, actualBuffer)
 
   const result = await comparePngs(resolve(repositoryRoot, config.reference), actualBuffer, diffPath, {
-    pixelThreshold: Number(config.pixelThreshold),
-    maxMismatchRatio: Number(config.maxMismatchRatio),
-    referenceCrop: parseCrop(config.referenceCrop),
+    pixelThreshold: config.pixelThreshold,
+    maxMismatchRatio: config.maxMismatchRatio,
+    referenceCrop: config.referenceCrop,
   })
   const report = {
     sample: config.sample,
@@ -64,17 +131,12 @@ try {
     reference: config.reference,
     actual: relativePath(actualPath),
     diff: relativePath(diffPath),
+    report: relativePath(reportPath),
     ...result,
   }
 
   await writeFile(reportPath, `${JSON.stringify(report, null, 2)}\n`)
-  console.log(JSON.stringify({ ...report, report: relativePath(reportPath) }, null, 2))
-
-  if (!result.passed) {
-    process.exitCode = 1
-  }
-} finally {
-  await browser.close()
+  return report
 }
 
 async function selectSlide(page, slideNumber) {
@@ -230,12 +292,17 @@ function parseArgs(args) {
 function printUsageAndExit(message) {
   console.error(message)
   console.error('用法：pnpm visual:compare -- --reference <wps.png> [--referenceCrop x,y,width,height] [--baseUrl http://localhost:5175/] [--sample "Fixture 4b00"] [--slide 8] [--renderer svg|canvas] [--pixelThreshold 0.1] [--maxMismatchRatio 0.05]')
+  console.error('批量：pnpm visual:compare -- --cases scripts/visual-regression-cases.json')
   process.exit(1)
 }
 
 function parseCrop(value) {
   if (!value) {
     return undefined
+  }
+
+  if (typeof value === 'object') {
+    return value
   }
 
   const values = String(value).split(',').map((item) => Number(item.trim()))

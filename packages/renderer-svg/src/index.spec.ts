@@ -57,6 +57,80 @@ describe('renderSlideToSvg', () => {
     expect(svg).toContain('<image x="0" y="0" width="1" height="1" href="blob:background" preserveAspectRatio="none" />')
   })
 
+  it('renders slide elements in ascending zIndex order', () => {
+    const slide: Slide = {
+      id: 'slide-z-index',
+      index: 0,
+      part: '/ppt/slides/slide-z-index.xml',
+      relationshipId: 'rIdZIndex',
+      background: undefined,
+      elements: [
+        {
+          id: 'front-shape',
+          index: 0,
+          type: 'shape',
+          slidePart: '/ppt/slides/slide-z-index.xml',
+          source,
+          visible: true,
+          opacity: 1,
+          zIndex: 10,
+          transform: { x: 20, y: 20, width: 80, height: 40 },
+          fill: { type: 'solid', color: '#ef4444' },
+        },
+        {
+          id: 'back-shape',
+          index: 1,
+          type: 'shape',
+          slidePart: '/ppt/slides/slide-z-index.xml',
+          source,
+          visible: true,
+          opacity: 1,
+          zIndex: 0,
+          transform: { x: 10, y: 10, width: 80, height: 40 },
+          fill: { type: 'solid', color: '#22c55e' },
+        },
+      ],
+      diagnostics: [],
+    }
+
+    const svg = renderSlideToSvg({ presentation: { width: 960, height: 540 }, slide })
+
+    expect(svg.indexOf('fill="#22c55e"')).toBeLessThan(svg.indexOf('fill="#ef4444"'))
+  })
+
+  it('renders the default slide background without non-PPT rounded corners', () => {
+    const slide: Slide = {
+      id: 'slide-default-background',
+      index: 0,
+      part: '/ppt/slides/slide-default-background.xml',
+      relationshipId: 'rIdDefaultBackground',
+      background: undefined,
+      elements: [],
+      diagnostics: [],
+    }
+
+    const svg = renderSlideToSvg({ presentation: { width: 960, height: 540 }, slide })
+
+    expect(svg).toContain('<rect width="100%" height="100%" fill="#f8fafc" />')
+    expect(svg).not.toContain('rx="12"')
+  })
+
+  it('keeps explicit noFill slide backgrounds transparent', () => {
+    const slide: Slide = {
+      id: 'slide-transparent-background',
+      index: 0,
+      part: '/ppt/slides/slide-transparent-background.xml',
+      relationshipId: 'rIdTransparentBackground',
+      background: { type: 'fill', fill: { type: 'none' } },
+      elements: [],
+      diagnostics: [],
+    }
+
+    const svg = renderSlideToSvg({ presentation: { width: 960, height: 540 }, slide })
+
+    expect(svg).not.toContain('<rect width="100%" height="100%"')
+  })
+
   it('renders cropped images with a normalized viewBox', () => {
     const slide: Slide = {
       id: 'slide-image-crop',

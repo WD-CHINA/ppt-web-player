@@ -23,11 +23,19 @@ export function renderSlideToCanvas(options: RenderSlideToCanvasOptions): void {
   context.save()
   drawSlideBackground(context, slide.background, presentation, mediaBitmaps)
 
-  for (const element of slide.elements) {
+  for (const element of orderedVisibleElements(slide.elements)) {
     renderElement(context, element, mediaBitmaps)
   }
 
   context.restore()
+}
+
+function orderedVisibleElements(elements: SlideElement[]): SlideElement[] {
+  return elements
+    .filter((element) => element.transform)
+    .map((element, order) => ({ element, order }))
+    .sort((left, right) => left.element.zIndex - right.element.zIndex || left.order - right.order)
+    .map(({ element }) => element)
 }
 
 function drawSlideBackground(
@@ -49,6 +57,11 @@ function drawSlideBackground(
   }
 
   const fill = background?.type === 'fill' ? background.fill : undefined
+
+  if (fill?.type === 'none') {
+    return
+  }
+
   context.fillStyle = solidFillColor(fill, '#f8fafc')
   context.fillRect(0, 0, presentation.width, presentation.height)
 }

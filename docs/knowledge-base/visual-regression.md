@@ -17,6 +17,7 @@
 ```sh
 pnpm visual:compare -- --reference <wps.png> --sample "Fixture 4b00" --slide 8 --renderer svg
 pnpm visual:compare -- --reference <wps.png> --sample "Fixture 4b00" --slide 8 --renderer canvas
+pnpm visual:compare:batch
 ```
 
 脚本行为：
@@ -33,6 +34,23 @@ pnpm visual:compare -- --reference <wps.png> --sample "Fixture 4b00" --slide 8 -
 ```text
 reports/visual-regression/
 ```
+
+批量模式读取 `scripts/visual-regression-cases.json`，支持数组或 `{ "cases": [...] }`：
+
+```json
+{
+  "cases": [
+    {
+      "sample": "Fixture 4b00",
+      "slide": 1,
+      "reference": "fixture-4b00-slide1.png",
+      "renderers": ["svg", "canvas"]
+    }
+  ]
+}
+```
+
+每个 case 可覆盖 `baseUrl`、`outputDir`、`referenceCrop`、`pixelThreshold`、`maxMismatchRatio`。批量执行会复用同一个 Chromium page，生成每个 case 的 `actual` / `diff` / `report`，并额外写入 `summary.json`。
 
 报告字段包含：
 
@@ -53,6 +71,8 @@ reports/visual-regression/
 - `--maxMismatchRatio` 控制整张图失败阈值，默认 `0.05`。
 - 当前阶段阈值应偏宽，用来定位大块缺图、层级错误、背景错误，不用于追求像素级 Office 等价。
 - 如果 WPS 参考图与实际渲染存在整页底图差异，优先检查 core 是否把 `p:bg/p:bgPr/a:blipFill` 解析为 `slide.background.type === 'image'`，以及 `parsePptx().media` 是否包含该背景图 part。
+- 如果批量模式只想跑部分样本，临时传入自定义 `--cases <json>`，不要改默认 cases 文件来做一次性筛选。
+- `summary.json` 的 `passed` 是所有 case 的汇总结果；任一 case 超过阈值时脚本会返回非零退出码。
 
 ### 关联文件
 

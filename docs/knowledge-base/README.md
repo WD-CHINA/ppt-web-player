@@ -6,7 +6,8 @@
 
 - `phase-0-pptx-package.md`：PPTX 包结构、关系解析、路径处理相关问题。
 - `xml-parser.md`：XML 解析、命名空间、节点查询相关问题。
-- `renderer-svg.md`：renderer 消费 core 模型、坐标、样式、显示异常相关问题。
+- `renderer-svg.md`：SVG renderer 消费 core 模型、坐标、样式、显示异常相关问题。
+- `renderer-canvas.md`：Canvas renderer 消费 normalized model、绘制顺序、bitmap、SVG/Canvas 差异相关问题。
 - `text-layout.md`：文本容器、段落、run、默认样式继承相关问题。
 - `text-bullets.md`：段落 bullet、列表符号、编号样式相关问题。
 - `diagnostics.md`：诊断错误码、降级策略、异常样本相关问题。

@@ -62,6 +62,67 @@ describe('renderSlideToCanvas', () => {
     expect(elementIndex).toBeGreaterThan(backgroundIndex)
   })
 
+  it('draws slide elements in ascending zIndex order', () => {
+    const operations: string[] = []
+    const context = createMockContext(operations)
+    const slide: Slide = {
+      id: 'slide-z-index',
+      index: 0,
+      part: '/ppt/slides/slide-z-index.xml',
+      relationshipId: 'rIdZIndex',
+      background: undefined,
+      elements: [
+        {
+          id: 'front-shape',
+          index: 0,
+          type: 'shape',
+          slidePart: '/ppt/slides/slide-z-index.xml',
+          source,
+          visible: true,
+          opacity: 1,
+          zIndex: 10,
+          transform: { x: 20, y: 20, width: 80, height: 40 },
+          fill: { type: 'solid', color: '#ef4444' },
+        },
+        {
+          id: 'back-shape',
+          index: 1,
+          type: 'shape',
+          slidePart: '/ppt/slides/slide-z-index.xml',
+          source,
+          visible: true,
+          opacity: 1,
+          zIndex: 0,
+          transform: { x: 10, y: 10, width: 80, height: 40 },
+          fill: { type: 'solid', color: '#22c55e' },
+        },
+      ],
+      diagnostics: [],
+    }
+
+    renderSlideToCanvas({ presentation: { width: 960, height: 540 }, slide, context, clear: false })
+
+    expect(operations.indexOf('fill:#22c55e')).toBeLessThan(operations.indexOf('fill:#ef4444'))
+  })
+
+  it('keeps explicit noFill slide backgrounds transparent on canvas', () => {
+    const operations: string[] = []
+    const context = createMockContext(operations)
+    const slide: Slide = {
+      id: 'slide-transparent-background',
+      index: 0,
+      part: '/ppt/slides/slide-transparent-background.xml',
+      relationshipId: 'rIdTransparentBackground',
+      background: { type: 'fill', fill: { type: 'none' } },
+      elements: [],
+      diagnostics: [],
+    }
+
+    renderSlideToCanvas({ presentation: { width: 960, height: 540 }, slide, context, clear: false })
+
+    expect(operations).not.toContain('fillRect:0,0,960,540')
+  })
+
   it('draws cropped images with source and destination rectangles', () => {
     const operations: string[] = []
     const context = createMockContext(operations)

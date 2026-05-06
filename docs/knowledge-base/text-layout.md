@@ -249,7 +249,8 @@ placeholder 文本样式常落在 layout/master 的 `p:txBody/a:lstStyle/a:lvlNp
 - inset 在 layout 阶段转换为内容盒，影响所有 line 的 `x/y` 和可换行宽度
 - `wrap: false` 只保留显式换行，不做自动换行
 - `anchor="ctr"/"b"` 会在 layout 阶段按内容盒剩余高度把 line y 偏移到 middle/bottom；未声明 anchor 时保持 top 行为
-- `normAutofit` 在内容高度溢出时做一次受控字体缩放近似，并把最终字号写到 layout run
+- `normAutofit` 在内容高度溢出时先做受控字体缩放近似，并把最终字号写到 layout run
+- 如果 `fontScale` 后仍溢出，`normAutofit.lineSpaceReduction` 会作为第二阶段压缩行距，当前最多压缩 40%，避免文本重叠
 - `spAutoFit` 只保留模型语义，当前不改变 shape transform
 
 这保持了边界：parser 负责表达 OOXML 语义，layout 负责排版近似，SVG/Canvas renderer 只消费 layout 结果。

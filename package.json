@@ -8,6 +8,7 @@
     "build": "pnpm -r build",
     "preview": "pnpm --filter @pptx-player/app preview",
     "visual:compare": "node scripts/visual-compare.mjs",
+    "visual:compare:batch": "node scripts/visual-compare.mjs --cases scripts/visual-regression-cases.json",
     "test:unit": "pnpm -r test:unit",
     "build-only": "pnpm --filter @pptx-player/app build-only",
     "type-check": "pnpm -r type-check",

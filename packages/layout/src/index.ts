@@ -76,7 +76,15 @@ export function layoutTextElement(element: TextElement, options: LayoutTextEleme
   const scale = Math.max(minScale, Math.min(1, contentBox.height / layout.height))
   const fittedLayout = layoutParagraphs(element, paragraphs, contentBox, align, baseDefaultFontSize, scale, options)
 
-  return applyVerticalAnchor(fittedLayout.block, fittedLayout.height, contentBox, element.textBody.properties?.verticalAnchor)
+  if (fittedLayout.height <= contentBox.height || autoFit.lineSpaceReduction === undefined) {
+    return applyVerticalAnchor(fittedLayout.block, fittedLayout.height, contentBox, element.textBody.properties?.verticalAnchor)
+  }
+
+  const maxReduction = Math.max(0, Math.min(0.4, autoFit.lineSpaceReduction / 100000))
+  const lineSpacingScale = Math.max(1 - maxReduction, Math.min(1, contentBox.height / fittedLayout.height))
+  const lineFittedLayout = layoutParagraphs(element, paragraphs, contentBox, align, baseDefaultFontSize, scale, options, lineSpacingScale)
+
+  return applyVerticalAnchor(lineFittedLayout.block, lineFittedLayout.height, contentBox, element.textBody.properties?.verticalAnchor)
 }
 
 function layoutParagraphs(
@@ -87,6 +95,7 @@ function layoutParagraphs(
   defaultFontSize: number,
   fontScale: number,
   options: LayoutTextElementOptions,
+  lineSpacingScale = 1,
 ): ParagraphLayoutResult {
   const scaledDefaultFontSize = defaultFontSize * fontScale
   const blockX = contentBox.x
@@ -115,7 +124,7 @@ function layoutParagraphs(
         measureText: options.measureText,
       })
     })
-    const lineHeight = paragraphLineHeight(paragraph, scaledDefaultFontSize)
+    const lineHeight = paragraphLineHeight(paragraph, scaledDefaultFontSize, lineSpacingScale)
     const spaceBefore = paragraphSpaceBefore(paragraph, scaledDefaultFontSize)
 
     wrappedLines.forEach((lineRuns, lineIndex) => {
@@ -126,7 +135,7 @@ function layoutParagraphs(
       lines.push({ x, y, runs })
     })
 
-    yOffset += paragraphBlockHeight(paragraph, wrappedLines, scaledDefaultFontSize)
+    yOffset += paragraphBlockHeight(paragraph, wrappedLines, scaledDefaultFontSize, lineSpacingScale)
   }
 
   return {
@@ -595,20 +604,18 @@ function bulletLayoutWidth(bulletLayout: BulletLayoutContext | undefined): numbe
   return bulletLayout?.width ?? 0
 }
 
-function paragraphLineHeight(paragraph: Paragraph, defaultFontSize: number): number {
+function paragraphLineHeight(paragraph: Paragraph, defaultFontSize: number, lineSpacingScale = 1): number {
   const percent = paragraph.style?.lineSpacing?.percent
+  let lineHeight: number
 
   if (percent) {
-    return defaultFontSize * (percent / 100000)
+    lineHeight = defaultFontSize * (percent / 100000)
+  } else {
+    const points = paragraph.style?.lineSpacing?.points
+    lineHeight = points ? spacingPointsToPx(points) : defaultFontSize * 1.3
   }
 
-  const points = paragraph.style?.lineSpacing?.points
-
-  if (points) {
-    return spacingPointsToPx(points)
-  }
-
-  return defaultFontSize * 1.3
+  return lineHeight * lineSpacingScale
 }
 
 function paragraphSpaceBefore(paragraph: Paragraph, defaultFontSize: number): number {
@@ -619,8 +626,8 @@ function paragraphSpaceAfter(paragraph: Paragraph, defaultFontSize: number): num
   return spacingToPx(paragraph.style?.spaceAfter, defaultFontSize)
 }
 
-function paragraphBlockHeight(paragraph: Paragraph, lines: TextLayoutRun[][], defaultFontSize: number): number {
-  const lineHeight = paragraphLineHeight(paragraph, defaultFontSize)
+function paragraphBlockHeight(paragraph: Paragraph, lines: TextLayoutRun[][], defaultFontSize: number, lineSpacingScale = 1): number {
+  const lineHeight = paragraphLineHeight(paragraph, defaultFontSize, lineSpacingScale)
   return paragraphSpaceBefore(paragraph, defaultFontSize) + lines.length * lineHeight + paragraphSpaceAfter(paragraph, defaultFontSize)
 }
 

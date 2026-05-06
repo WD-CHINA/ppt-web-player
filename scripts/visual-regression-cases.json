@@ -1,0 +1,16 @@
+{
+  "cases": [
+    {
+      "sample": "Fixture 4b00",
+      "slide": 1,
+      "reference": "fixture-4b00-slide1.png",
+      "renderers": ["svg", "canvas"]
+    },
+    {
+      "sample": "Fixture 4b00",
+      "slide": 8,
+      "reference": "fixture-4b00-slide8.png",
+      "renderers": ["svg", "canvas"]
+    }
+  ]
+}

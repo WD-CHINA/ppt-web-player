@@ -15,7 +15,7 @@ export function renderSlideToSvg(options: RenderSlideToSvgOptions): string {
   const { presentation, slide, mediaUrls = {}, ariaLabel, className } = options
   const label = escapeAttribute(ariaLabel ?? `${slide.part} preview`)
   const classAttr = className ? ` class="${escapeAttribute(className)}"` : ''
-  const elements = slide.elements.filter((element) => element.transform)
+  const elements = orderedVisibleElements(slide.elements)
 
   return [
     `<svg${classAttr} role="img" aria-label="${label}" viewBox="0 0 ${presentation.width} ${presentation.height}" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">`,
@@ -24,6 +24,14 @@ export function renderSlideToSvg(options: RenderSlideToSvgOptions): string {
     ...elements.map((element) => renderElement(element, mediaUrls)),
     '</svg>',
   ].join('')
+}
+
+function orderedVisibleElements(elements: SlideElement[]): SlideElement[] {
+  return elements
+    .filter((element) => element.transform)
+    .map((element, order) => ({ element, order }))
+    .sort((left, right) => left.element.zIndex - right.element.zIndex || left.order - right.order)
+    .map(({ element }) => element)
 }
 
 function renderSlideBackground(
@@ -47,7 +55,12 @@ function renderSlideBackground(
   }
 
   const fill = background?.type === 'fill' ? background.fill : undefined
-  return `<rect width="100%" height="100%" rx="12" fill="${escapeAttribute(solidFillColor(fill, '#f8fafc'))}" />`
+
+  if (fill?.type === 'none') {
+    return ''
+  }
+
+  return `<rect width="100%" height="100%" fill="${escapeAttribute(solidFillColor(fill, '#f8fafc'))}" />`
 }
 
 function renderDefs(): string {

@@ -1,6 +1,7 @@
 import { DIAGNOSTIC_CODES } from '../../diagnostics/codes'
 import { pushDiagnostic, slideDiagnosticContext } from '../../diagnostics/context'
 import type { Diagnostic } from '../../diagnostics/Diagnostic'
+import { mapTransformToGroup, parseGroupTransform, type GroupTransform } from '../drawing/Transform'
 import type { PresentationTheme, SlideBackground, SlideElement, SlideLayout, SlideMaster } from '../../model/Presentation'
 import type { PptxPackage } from '../../package/PptxPackage'
 import type { XmlNode } from '../../xml/XmlNode'
@@ -85,14 +86,23 @@ async function appendShapeTreeChild(
   elements: SlideElement[],
   diagnostics: Diagnostic[],
   parseContext: SlideParseContext,
+  groupTransform?: GroupTransform,
 ): Promise<void> {
   if (node.name === 'p:nvGrpSpPr' || node.name === 'p:grpSpPr') {
     return
   }
 
   if (node.name === 'p:grpSp') {
+    const childGroupTransform = parseGroupTransform(node)
+    const mappedGroupTransform = childGroupTransform
+      ? {
+          frame: mapTransformToGroup(childGroupTransform.frame, groupTransform) ?? childGroupTransform.frame,
+          childFrame: childGroupTransform.childFrame,
+        }
+      : groupTransform
+
     for (const child of xml.children(node)) {
-      await appendShapeTreeChild(pptx, slidePart, slideIndex, child, elements, diagnostics, parseContext)
+      await appendShapeTreeChild(pptx, slidePart, slideIndex, child, elements, diagnostics, parseContext, mappedGroupTransform)
     }
 
     return
@@ -101,7 +111,7 @@ async function appendShapeTreeChild(
   const element = await parseShapeTreeChild(pptx, slidePart, slideIndex, node, elements.length, diagnostics, parseContext)
 
   if (element) {
-    elements.push(element)
+    elements.push({ ...element, transform: mapTransformToGroup(element.transform, groupTransform) })
   }
 }
 

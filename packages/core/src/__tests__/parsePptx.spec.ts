@@ -99,9 +99,9 @@ describe('parsePptx', () => {
     <p:sp><p:nvSpPr><p:cNvPr id="8" name="Ellipse"/></p:nvSpPr><p:spPr><a:xfrm><a:off x="6400800" y="3657600"/><a:ext cx="914400" cy="914400"/></a:xfrm><a:prstGeom prst="ellipse"><a:avLst/></a:prstGeom><a:solidFill><a:srgbClr val="A855F7"/></a:solidFill></p:spPr></p:sp>
     <p:sp><p:nvSpPr><p:cNvPr id="9" name="No Fill Box"/></p:nvSpPr><p:spPr><a:xfrm><a:off x="7315200" y="3657600"/><a:ext cx="914400" cy="914400"/></a:xfrm><a:prstGeom prst="roundRect"><a:avLst/></a:prstGeom><a:noFill/><a:ln w="38100"><a:solidFill><a:srgbClr val="111827"/></a:solidFill></a:ln></p:spPr></p:sp>
     <p:cxnSp><p:nvCxnSpPr><p:cNvPr id="5" name="Connector"/></p:nvCxnSpPr><p:spPr><a:xfrm><a:off x="3657600" y="3657600"/><a:ext cx="1828800" cy="914400"/></a:xfrm><a:solidFill><a:srgbClr val="FFAA00"/></a:solidFill><a:ln w="114300"><a:solidFill><a:srgbClr val="0F766E"/></a:solidFill><a:tailEnd type="triangle" w="med" len="med"/></a:ln></p:spPr></p:cxnSp>
-    <p:grpSp><p:nvGrpSpPr/><p:grpSpPr/>
-      <p:sp><p:nvSpPr><p:cNvPr id="6" name="Grouped Text"/></p:nvSpPr><p:spPr><a:xfrm><a:off x="914400" y="457200"/><a:ext cx="1828800" cy="457200"/></a:xfrm></p:spPr><p:txBody><a:p><a:r><a:t>Grouped Hello</a:t></a:r></a:p></p:txBody></p:sp>
-      <p:sp><p:nvSpPr><p:cNvPr id="7" name="Grouped Box"/></p:nvSpPr><p:spPr><a:xfrm><a:off x="2743200" y="457200"/><a:ext cx="914400" cy="914400"/></a:xfrm><a:solidFill><a:srgbClr val="22C55E"/></a:solidFill></p:spPr></p:sp>
+    <p:grpSp><p:nvGrpSpPr/><p:grpSpPr><a:xfrm><a:off x="960000" y="960000"/><a:ext cx="3840000" cy="1920000"/><a:chOff x="0" y="0"/><a:chExt cx="1920000" cy="960000"/></a:xfrm></p:grpSpPr>
+      <p:sp><p:nvSpPr><p:cNvPr id="6" name="Grouped Text"/></p:nvSpPr><p:spPr><a:xfrm><a:off x="480000" y="240000"/><a:ext cx="480000" cy="240000"/></a:xfrm></p:spPr><p:txBody><a:p><a:r><a:t>Grouped Hello</a:t></a:r></a:p></p:txBody></p:sp>
+      <p:sp><p:nvSpPr><p:cNvPr id="7" name="Grouped Box"/></p:nvSpPr><p:spPr><a:xfrm><a:off x="960000" y="240000"/><a:ext cx="480000" cy="480000"/></a:xfrm><a:solidFill><a:srgbClr val="22C55E"/></a:solidFill></p:spPr></p:sp>
     </p:grpSp>
     <p:graphicFrame/>
   </p:spTree></p:cSld>
@@ -263,7 +263,7 @@ describe('parsePptx', () => {
         visible: true,
         opacity: 1,
         zIndex: 6,
-        transform: { x: 96, y: 48, width: 192, height: 48 },
+        transform: { x: 201, y: 151, width: 100, height: 50 },
         textBody: {
           paragraphs: [
             {
@@ -281,7 +281,7 @@ describe('parsePptx', () => {
         visible: true,
         opacity: 1,
         zIndex: 7,
-        transform: { x: 288, y: 48, width: 96, height: 96 },
+        transform: { x: 303, y: 151, width: 100, height: 100 },
         fill: { type: 'solid', color: '#22C55E' },
       }),
       expect.objectContaining({
@@ -325,6 +325,84 @@ describe('parsePptx', () => {
         }),
       ]),
     )
+  })
+
+  it('inherits layout and master slide backgrounds when slide has no explicit background', async () => {
+    const zip = new JSZip()
+    zip.file(
+      '[Content_Types].xml',
+      `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
+  <Override PartName="/ppt/presentation.xml" ContentType="application/vnd.openxmlformats-officedocument.presentationml.presentation.main+xml"/>
+</Types>`,
+    )
+    zip.file(
+      'ppt/presentation.xml',
+      `<p:presentation xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
+  <p:sldMasterIdLst><p:sldMasterId id="2147483648" r:id="rIdMaster1"/></p:sldMasterIdLst>
+  <p:sldSz cx="9144000" cy="5143500"/>
+  <p:sldIdLst><p:sldId id="256" r:id="rId1"/><p:sldId id="257" r:id="rId2"/></p:sldIdLst>
+</p:presentation>`,
+    )
+    zip.file(
+      'ppt/_rels/presentation.xml.rels',
+      `<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rIdMaster1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/slideMaster" Target="slideMasters/slideMaster1.xml"/>
+  <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/slide" Target="slides/slide1.xml"/>
+  <Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/slide" Target="slides/slide2.xml"/>
+</Relationships>`,
+    )
+    zip.file(
+      'ppt/slideMasters/slideMaster1.xml',
+      `<p:sldMaster xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main" xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main">
+  <p:cSld name="Master 1"><p:bg><p:bgPr><a:solidFill><a:srgbClr val="111111"/></a:solidFill></p:bgPr></p:bg><p:spTree><p:nvGrpSpPr/><p:grpSpPr/></p:spTree></p:cSld>
+</p:sldMaster>`,
+    )
+    zip.file(
+      'ppt/slideMasters/_rels/slideMaster1.xml.rels',
+      `<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rIdLayout1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/slideLayout" Target="../slideLayouts/slideLayout1.xml"/>
+  <Relationship Id="rIdLayout2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/slideLayout" Target="../slideLayouts/slideLayout2.xml"/>
+</Relationships>`,
+    )
+    zip.file(
+      'ppt/slideLayouts/slideLayout1.xml',
+      `<p:sldLayout xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main" xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main">
+  <p:cSld name="Layout 1"><p:bg><p:bgPr><a:solidFill><a:srgbClr val="222222"/></a:solidFill></p:bgPr></p:bg><p:spTree><p:nvGrpSpPr/><p:grpSpPr/></p:spTree></p:cSld>
+</p:sldLayout>`,
+    )
+    zip.file(
+      'ppt/slideLayouts/slideLayout2.xml',
+      `<p:sldLayout xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main">
+  <p:cSld name="Layout 2"><p:spTree><p:nvGrpSpPr/><p:grpSpPr/></p:spTree></p:cSld>
+</p:sldLayout>`,
+    )
+    zip.file(
+      'ppt/slides/slide1.xml',
+      `<p:sld xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main"><p:cSld><p:spTree><p:nvGrpSpPr/><p:grpSpPr/></p:spTree></p:cSld></p:sld>`,
+    )
+    zip.file(
+      'ppt/slides/slide2.xml',
+      `<p:sld xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main"><p:cSld><p:spTree><p:nvGrpSpPr/><p:grpSpPr/></p:spTree></p:cSld></p:sld>`,
+    )
+    zip.file(
+      'ppt/slides/_rels/slide1.xml.rels',
+      `<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rIdLayoutSlide1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/slideLayout" Target="../slideLayouts/slideLayout1.xml"/>
+</Relationships>`,
+    )
+    zip.file(
+      'ppt/slides/_rels/slide2.xml.rels',
+      `<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rIdLayoutSlide2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/slideLayout" Target="../slideLayouts/slideLayout2.xml"/>
+</Relationships>`,
+    )
+
+    const input = await zip.generateAsync({ type: 'arraybuffer' })
+    const result = await parsePptx(input)
+
+    expect(result.presentation?.slides[0]?.background).toEqual({ type: 'fill', fill: { type: 'solid', color: '#222222' } })
+    expect(result.presentation?.slides[1]?.background).toEqual({ type: 'fill', fill: { type: 'solid', color: '#111111' } })
   })
 
   it('parses image slide backgrounds and collects their media', async () => {

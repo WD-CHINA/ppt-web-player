@@ -528,6 +528,54 @@ describe('layoutTextElement', () => {
     expect(layout?.lines.map((line) => line.runs.map((run) => run.text).join(''))).toEqual(['企业', '平台', '介绍'])
   })
 
+  it('keeps CJK line-start punctuation with the previous character', () => {
+    const element: TextElement = {
+      id: 'text-cjk-punctuation-start',
+      index: 0,
+      type: 'text',
+      slidePart: '/ppt/slides/slide-cjk-punctuation-start.xml',
+      source,
+      visible: true,
+      opacity: 1,
+      zIndex: 0,
+      transform: { x: 0, y: 0, width: 32, height: 120 },
+      text: '标题，正文。',
+      textBody: {
+        paragraphs: [{ text: '标题，正文。', runs: [{ text: '标题，正文。', style: { fontSize: 1600 } }], style: { defaultRunStyle: { fontSize: 1600 } } }],
+      },
+    }
+
+    const layout = layoutTextElement(element, {
+      measureText: ({ text }) => [...normalizeTextRunText(text)].length * 16,
+    })
+
+    expect(layout?.lines.map((line) => line.runs.map((run) => run.text).join(''))).toEqual(['标', '题，', '正', '文。'])
+  })
+
+  it('keeps CJK line-end punctuation with the following character', () => {
+    const element: TextElement = {
+      id: 'text-cjk-punctuation-end',
+      index: 0,
+      type: 'text',
+      slidePart: '/ppt/slides/slide-cjk-punctuation-end.xml',
+      source,
+      visible: true,
+      opacity: 1,
+      zIndex: 0,
+      transform: { x: 0, y: 0, width: 32, height: 120 },
+      text: '标题（正文',
+      textBody: {
+        paragraphs: [{ text: '标题（正文', runs: [{ text: '标题（正文', style: { fontSize: 1600 } }], style: { defaultRunStyle: { fontSize: 1600 } } }],
+      },
+    }
+
+    const layout = layoutTextElement(element, {
+      measureText: ({ text }) => [...normalizeTextRunText(text)].length * 16,
+    })
+
+    expect(layout?.lines.map((line) => line.runs.map((run) => run.text).join(''))).toEqual(['标题', '（正', '文'])
+  })
+
   it('shrinks normal autofit text when content exceeds the box height', () => {
     const element: TextElement = {
       id: 'text-autofit',
@@ -553,6 +601,62 @@ describe('layoutTextElement', () => {
 
     expect(layout?.defaultFontSize).toBeLessThan(20)
     expect(layout?.lines[0]?.runs[0]?.fontSize).toBeLessThan(20)
+  })
+
+  it('uses normal autofit lineSpaceReduction after font scaling', () => {
+    const element: TextElement = {
+      id: 'text-autofit-line-spacing',
+      index: 0,
+      type: 'text',
+      slidePart: '/ppt/slides/slide-autofit-line-spacing.xml',
+      source,
+      visible: true,
+      opacity: 1,
+      zIndex: 0,
+      transform: { x: 0, y: 0, width: 200, height: 56 },
+      text: 'One\nTwo\nThree',
+      textBody: {
+        properties: { autoFit: { type: 'normal', fontScale: 100000, lineSpaceReduction: 30000 } },
+        paragraphs: [
+          { text: 'One', runs: [{ text: 'One', style: { fontSize: 2000 } }], style: { defaultRunStyle: { fontSize: 2000 } } },
+          { text: 'Two', runs: [{ text: 'Two', style: { fontSize: 2000 } }], style: { defaultRunStyle: { fontSize: 2000 } } },
+          { text: 'Three', runs: [{ text: 'Three', style: { fontSize: 2000 } }], style: { defaultRunStyle: { fontSize: 2000 } } },
+        ],
+      },
+    }
+
+    const layout = layoutTextElement(element)
+    const firstGap = (layout?.lines[1]?.y ?? 0) - (layout?.lines[0]?.y ?? 0)
+
+    expect(layout?.defaultFontSize).toBe(20)
+    expect(firstGap).toBeCloseTo(18.67)
+  })
+
+  it('caps normal autofit lineSpaceReduction at a safe minimum', () => {
+    const element: TextElement = {
+      id: 'text-autofit-line-spacing-cap',
+      index: 0,
+      type: 'text',
+      slidePart: '/ppt/slides/slide-autofit-line-spacing-cap.xml',
+      source,
+      visible: true,
+      opacity: 1,
+      zIndex: 0,
+      transform: { x: 0, y: 0, width: 200, height: 20 },
+      text: 'One\nTwo',
+      textBody: {
+        properties: { autoFit: { type: 'normal', fontScale: 100000, lineSpaceReduction: 90000 } },
+        paragraphs: [
+          { text: 'One', runs: [{ text: 'One', style: { fontSize: 2000 } }], style: { defaultRunStyle: { fontSize: 2000 } } },
+          { text: 'Two', runs: [{ text: 'Two', style: { fontSize: 2000 } }], style: { defaultRunStyle: { fontSize: 2000 } } },
+        ],
+      },
+    }
+
+    const layout = layoutTextElement(element)
+    const firstGap = (layout?.lines[1]?.y ?? 0) - (layout?.lines[0]?.y ?? 0)
+
+    expect(firstGap).toBeCloseTo(15.6)
   })
 
   it('treats center-aligned paragraphs as a centered text block', () => {

@@ -95,6 +95,9 @@ importers:
       '@pptx-player/core':
         specifier: workspace:*
         version: link:../core
+      '@pptx-player/player':
+        specifier: workspace:*
+        version: link:../player
       '@pptx-player/renderer-canvas':
         specifier: workspace:*
         version: link:../renderer-canvas

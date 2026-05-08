@@ -35,5 +35,16 @@ export type {
   UnknownElement,
 } from './model/Presentation'
 export type { Relationship, ResolvedRelationship } from './package/Relationship'
+export {
+  canvasLineDash,
+  orderedVisibleElements,
+  solidFillColor,
+  svgFill,
+  svgFillOpacity,
+  svgMarkerEnd,
+  svgMarkerStart,
+  svgStrokeDasharray,
+  svgStrokeOpacity,
+} from './renderer/rendererUtils'
 export { parsePptx, type ParsePptxResult } from './parser/parsePptx'
 export { PptxPackage } from './package/PptxPackage'

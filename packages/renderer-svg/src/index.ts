@@ -1,4 +1,14 @@
-import type { Fill, ImageCrop, LineEndStyle, LineStyle, Presentation, Slide, SlideBackground, SlideElement, TextElement, TextStyle, Transform } from '@pptx-player/core'
+import type { Fill, ImageCrop, LineStyle, Presentation, Slide, SlideBackground, SlideElement, TextElement, TextStyle, Transform } from '@pptx-player/core'
+import {
+  orderedVisibleElements,
+  solidFillColor,
+  svgFill,
+  svgFillOpacity,
+  svgMarkerEnd,
+  svgMarkerStart,
+  svgStrokeDasharray,
+  svgStrokeOpacity,
+} from '@pptx-player/core'
 import { layoutTextElement, normalizeTextRunText, textStyleFontSize } from '@pptx-player/layout'
 
 export const rendererSvgPackageName = '@pptx-player/renderer-svg'
@@ -24,14 +34,6 @@ export function renderSlideToSvg(options: RenderSlideToSvgOptions): string {
     ...elements.map((element) => renderElement(element, mediaUrls)),
     '</svg>',
   ].join('')
-}
-
-function orderedVisibleElements(elements: SlideElement[]): SlideElement[] {
-  return elements
-    .filter((element) => element.transform)
-    .map((element, order) => ({ element, order }))
-    .sort((left, right) => left.element.zIndex - right.element.zIndex || left.order - right.order)
-    .map(({ element }) => element)
 }
 
 function renderSlideBackground(
@@ -219,69 +221,6 @@ function renderShapePaint(fill: Fill | undefined, line: LineStyle | undefined): 
 
 function renderOptionalAttribute(name: string, value: string | undefined): string {
   return value ? ` ${name}="${escapeAttribute(value)}"` : ''
-}
-
-function svgFill(fill: Fill | undefined): string {
-  if (!fill) {
-    return '#cbd5e1'
-  }
-
-  return fill.type === 'solid' ? fill.color : 'none'
-}
-
-function solidFillColor(fill: Fill | undefined, fallback: string): string {
-  return fill?.type === 'solid' ? fill.color : fallback
-}
-
-function svgFillOpacity(fill: Fill | undefined): number {
-  return fill?.type === 'solid' ? (fill.opacity ?? 1) : 1
-}
-
-function svgStrokeOpacity(line: LineStyle | undefined): number {
-  return line?.opacity ?? 1
-}
-
-function svgStrokeDasharray(line: LineStyle | undefined): string | undefined {
-  if (!line?.dash) {
-    return undefined
-  }
-
-  const unit = Math.max(1, line.width ?? 1)
-  const dashPatterns: Record<string, number[]> = {
-    dash: [3, 2],
-    dashDot: [3, 2, 1, 2],
-    dot: [1, 2],
-    lgDash: [6, 2],
-    lgDashDot: [6, 2, 1, 2],
-    lgDashDotDot: [6, 2, 1, 2, 1, 2],
-    sysDash: [3, 1],
-    sysDashDot: [3, 1, 1, 1],
-    sysDashDotDot: [3, 1, 1, 1, 1, 1],
-    sysDot: [1, 1],
-  }
-  const pattern = line.dash ? dashPatterns[line.dash] : undefined
-
-  return pattern?.map((value) => value * unit).join(' ')
-}
-
-function svgMarkerStart(line: LineStyle | undefined): string | undefined {
-  return svgMarker(line?.headEnd)
-}
-
-function svgMarkerEnd(line: LineStyle | undefined): string | undefined {
-  return svgMarker(line?.tailEnd)
-}
-
-function svgMarker(lineEnd: LineEndStyle | undefined): string | undefined {
-  const markerIds: Record<string, string> = {
-    arrow: 'ppt-marker-triangle',
-    diamond: 'ppt-marker-diamond',
-    oval: 'ppt-marker-oval',
-    stealth: 'ppt-marker-stealth',
-    triangle: 'ppt-marker-triangle',
-  }
-  const markerId = lineEnd ? markerIds[lineEnd.type] : undefined
-  return markerId ? `url(#${markerId})` : undefined
 }
 
 function escapeText(value: string): string {

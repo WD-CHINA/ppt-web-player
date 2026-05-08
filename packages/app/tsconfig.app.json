@@ -9,6 +9,7 @@
     // Path mapping for cleaner imports.
     "paths": {
       "@/*": ["./src/*"],
+      "@pptx-player/player": ["../player/src/index.ts"],
       "@pptx-player/renderer-canvas": ["../renderer-canvas/src/index.ts"],
       "@pptx-player/renderer-svg": ["../renderer-svg/src/index.ts"]
     },

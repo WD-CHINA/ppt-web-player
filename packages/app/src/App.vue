@@ -1,9 +1,10 @@
 <script setup lang="ts">
-import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue'
 import { parsePptx, type Diagnostic, type DiagnosticSeverity, type Fill, type Presentation } from '@pptx-player/core'
 import { renderSlideToCanvas } from '@pptx-player/renderer-canvas'
 import { renderSlideToSvg } from '@pptx-player/renderer-svg'
 
+import { usePlayer } from './composables/usePlayer'
 import { sampleDecks } from './samples'
 
 const isLoading = ref(false)
@@ -12,15 +13,26 @@ const diagnostics = ref<Diagnostic[]>([])
 const presentation = ref<Presentation | null>(null)
 const mediaUrls = ref<Record<string, string>>({})
 const activeFileName = ref('')
-const activeSlideIndex = ref(0)
 const canvasHost = ref<HTMLCanvasElement | null>(null)
 const canvasBitmaps = ref<Record<string, ImageBitmap>>({})
+
+const {
+  activeSlideIndex,
+  slideCount,
+  canGoNext,
+  canGoPrevious,
+  goToSlide,
+  first: goToFirstSlide,
+  previous: goToPreviousSlide,
+  next: goToNextSlide,
+  last: goToLastSlide,
+  updateSlideCount,
+} = usePlayer({ slideCount: 0 })
 const diagnosticSeverityFilter = ref<DiagnosticSeverity | 'all'>('all')
 const diagnosticCodeFilter = ref('all')
 const diagnosticSlideFilter = ref('all')
 
 const hasResult = computed(() => presentation.value !== null)
-const slideCount = computed(() => presentation.value?.slides.length ?? 0)
 const activeSlide = computed(() => presentation.value?.slides[activeSlideIndex.value] ?? presentation.value?.slides[0] ?? null)
 const activeSlideSvg = computed(() => {
   if (!presentation.value || !activeSlide.value) {
@@ -35,10 +47,6 @@ const activeSlideSvg = computed(() => {
     className: 'slide-preview',
   })
 })
-const canGoFirstSlide = computed(() => activeSlideIndex.value > 0)
-const canGoPreviousSlide = computed(() => activeSlideIndex.value > 0)
-const canGoNextSlide = computed(() => activeSlideIndex.value < slideCount.value - 1)
-const canGoLastSlide = computed(() => activeSlideIndex.value < slideCount.value - 1)
 const diagnosticCounts = computed<Record<DiagnosticSeverity, number>>(() => ({
   info: diagnostics.value.filter((diagnostic) => diagnostic.severity === 'info').length,
   warning: diagnostics.value.filter((diagnostic) => diagnostic.severity === 'warning').length,
@@ -70,7 +78,7 @@ async function parseInput(input: Blob | ArrayBuffer, fileName: string) {
   presentation.value = null
   diagnostics.value = []
   activeFileName.value = fileName
-  activeSlideIndex.value = 0
+  goToSlide(0)
   revokeMediaUrls()
   revokeCanvasBitmaps()
 
@@ -81,7 +89,9 @@ async function parseInput(input: Blob | ArrayBuffer, fileName: string) {
     mediaUrls.value = createMediaUrls(result.media)
     canvasBitmaps.value = await createCanvasBitmaps(result.media)
 
-    if (!result.presentation) {
+    if (result.presentation) {
+      updateSlideCount(result.presentation.slides.length)
+    } else {
       errorMessage.value = '未能解析 presentation.xml，请查看 diagnostics。'
     }
   } catch (error) {
@@ -112,64 +122,6 @@ async function handleFileChange(event: Event) {
 
   await parseInput(file, file.name)
   input.value = ''
-}
-
-function goToSlide(index: number) {
-  if (slideCount.value === 0) {
-    activeSlideIndex.value = 0
-    return
-  }
-
-  activeSlideIndex.value = Math.min(Math.max(index, 0), slideCount.value - 1)
-}
-
-function goToFirstSlide() {
-  goToSlide(0)
-}
-
-function goToPreviousSlide() {
-  goToSlide(activeSlideIndex.value - 1)
-}
-
-function goToNextSlide() {
-  goToSlide(activeSlideIndex.value + 1)
-}
-
-function goToLastSlide() {
-  goToSlide(slideCount.value - 1)
-}
-
-function handleKeydown(event: KeyboardEvent) {
-  if (!presentation.value || isInteractiveTarget(event.target)) {
-    return
-  }
-
-  if (event.key === 'ArrowLeft' || event.key === 'PageUp') {
-    event.preventDefault()
-    goToPreviousSlide()
-    return
-  }
-
-  if (event.key === 'ArrowRight' || event.key === 'PageDown' || event.key === ' ') {
-    event.preventDefault()
-    goToNextSlide()
-    return
-  }
-
-  if (event.key === 'Home') {
-    event.preventDefault()
-    goToFirstSlide()
-    return
-  }
-
-  if (event.key === 'End') {
-    event.preventDefault()
-    goToLastSlide()
-  }
-}
-
-function isInteractiveTarget(target: EventTarget | null): boolean {
-  return target instanceof HTMLElement && ['BUTTON', 'INPUT', 'TEXTAREA', 'SELECT', 'A'].includes(target.tagName)
 }
 
 function solidFillColor(fill: Fill | undefined, fallback: string): string {
@@ -255,13 +207,8 @@ watch([presentation, activeSlide, canvasBitmaps], async () => {
   renderActiveSlideToCanvas()
 })
 
-onMounted(() => {
-  window.addEventListener('keydown', handleKeydown)
-  renderActiveSlideToCanvas()
-})
-
+// Keyboard handling is managed by usePlayer composable (attachKeyboard on mount, destroy on unmount).
 onBeforeUnmount(() => {
-  window.removeEventListener('keydown', handleKeydown)
   revokeMediaUrls()
   revokeCanvasBitmaps()
 })
@@ -270,10 +217,10 @@ onBeforeUnmount(() => {
 <template>
   <main class="app-shell">
     <section class="hero-panel">
-      <p class="eyebrow">PPTX Web Player · Week 3</p>
+      <p class="eyebrow">PPTX Web Player · Week 4</p>
       <h1>企业可控 PPTX Web Player</h1>
       <p class="description">
-        当前阶段已打通 PPTX 解析与 `renderer-svg` / `renderer-canvas` 静态渲染 MVP，`app` 负责上传、翻页与 diagnostics，渲染逻辑开始正式收口到独立 renderer 包。
+        当前阶段已打通 PPTX 解析、双渲染器静态渲染与 Player Runtime MVP。导航与键盘控制已迁入独立 `@pptx-player/player` 包，`app` 仅负责上传、解析调用与 UI 渲染。
       </p>
     </section>
 
@@ -336,11 +283,11 @@ onBeforeUnmount(() => {
           <div class="preview-header">
             <h3>{{ activeSlide ? `Slide #${activeSlide.index + 1} 对照预览` : 'Slide 预览' }}</h3>
             <div class="slide-nav" aria-label="Slide navigation">
-              <button type="button" :disabled="!canGoFirstSlide" @click="goToFirstSlide">首页</button>
-              <button type="button" :disabled="!canGoPreviousSlide" @click="goToPreviousSlide">上一页</button>
+              <button type="button" :disabled="!canGoPrevious" @click="goToFirstSlide">首页</button>
+              <button type="button" :disabled="!canGoPrevious" @click="goToPreviousSlide">上一页</button>
               <span>{{ activeSlide ? activeSlide.index + 1 : 0 }} / {{ slideCount }}</span>
-              <button type="button" :disabled="!canGoNextSlide" @click="goToNextSlide">下一页</button>
-              <button type="button" :disabled="!canGoLastSlide" @click="goToLastSlide">末页</button>
+              <button type="button" :disabled="!canGoNext" @click="goToNextSlide">下一页</button>
+              <button type="button" :disabled="!canGoNext" @click="goToLastSlide">末页</button>
             </div>
           </div>
 

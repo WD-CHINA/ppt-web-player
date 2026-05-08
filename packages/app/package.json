@@ -13,6 +13,7 @@
   },
   "dependencies": {
     "@pptx-player/core": "workspace:*",
+    "@pptx-player/player": "workspace:*",
     "@pptx-player/renderer-canvas": "workspace:*",
     "@pptx-player/renderer-svg": "workspace:*",
     "pinia": "^3.0.4",

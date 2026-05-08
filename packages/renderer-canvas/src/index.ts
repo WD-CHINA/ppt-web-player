@@ -1,4 +1,11 @@
 import type { Fill, ImageCrop, LineStyle, Presentation, Slide, SlideBackground, SlideElement, TextElement, TextStyle, Transform } from '@pptx-player/core'
+import {
+  canvasLineDash,
+  orderedVisibleElements,
+  solidFillColor,
+  svgFill,
+  svgFillOpacity,
+} from '@pptx-player/core'
 import { layoutTextElement, normalizeTextRunText, textStyleFontSize } from '@pptx-player/layout'
 
 export const rendererCanvasPackageName = '@pptx-player/renderer-canvas'
@@ -28,14 +35,6 @@ export function renderSlideToCanvas(options: RenderSlideToCanvasOptions): void {
   }
 
   context.restore()
-}
-
-function orderedVisibleElements(elements: SlideElement[]): SlideElement[] {
-  return elements
-    .filter((element) => element.transform)
-    .map((element, order) => ({ element, order }))
-    .sort((left, right) => left.element.zIndex - right.element.zIndex || left.order - right.order)
-    .map(({ element }) => element)
 }
 
 function drawSlideBackground(
@@ -285,28 +284,6 @@ function applyStroke(
   context.restore()
 }
 
-function canvasLineDash(line: LineStyle | undefined): number[] {
-  if (!line?.dash) {
-    return []
-  }
-
-  const unit = Math.max(1, line.width ?? 1)
-  const dashPatterns: Record<string, number[]> = {
-    dash: [3, 2],
-    dashDot: [3, 2, 1, 2],
-    dot: [1, 2],
-    lgDash: [6, 2],
-    lgDashDot: [6, 2, 1, 2],
-    lgDashDotDot: [6, 2, 1, 2, 1, 2],
-    sysDash: [3, 1],
-    sysDashDot: [3, 1, 1, 1],
-    sysDashDotDot: [3, 1, 1, 1, 1, 1],
-    sysDot: [1, 1],
-  }
-
-  return dashPatterns[line.dash]?.map((value) => value * unit) ?? []
-}
-
 function fillRoundRect(
   context: CanvasRenderingContext2D,
   x: number,
@@ -346,20 +323,4 @@ function roundRectPath(
   context.arcTo(x, y + height, x, y, safeRadius)
   context.arcTo(x, y, x + width, y, safeRadius)
   context.closePath()
-}
-
-function svgFill(fill: Fill | undefined): string {
-  if (!fill) {
-    return '#cbd5e1'
-  }
-
-  return fill.type === 'solid' ? fill.color : 'none'
-}
-
-function solidFillColor(fill: Fill | undefined, fallback: string): string {
-  return fill?.type === 'solid' ? fill.color : fallback
-}
-
-function svgFillOpacity(fill: Fill | undefined): number {
-  return fill?.type === 'solid' ? (fill.opacity ?? 1) : 1
 }
